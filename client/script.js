@@ -15,12 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Open upload/modal block
     uploadBtn.addEventListener('click', async (e) => {
         e.preventDefault();
-        
+
         try {
             // Check auth status
             const res = await fetch('/api/auth/status', { credentials: 'include' });
             const data = await res.json();
-            
+
             if (data.isLoggedIn) {
                 // If logged in, redirect to upload page
                 window.location.href = '/upload';
@@ -88,10 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
     authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         clearErrors();
-        
+
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        
+
         if (!isLoginMode) {
             const confirmPassword = confirmPasswordInput.value;
             if (password !== confirmPassword) {
@@ -99,13 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
         }
-        
+
         const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/signup';
-        
+
         try {
             authSubmitBtn.disabled = true;
             authSubmitBtn.textContent = 'Please wait...';
-            
+
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -114,14 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 credentials: 'include',
                 body: JSON.stringify({ email, password })
             });
-            
+
             const data = await res.json();
-            
+
             if (res.ok) {
                 // Success
                 closeAuthModal();
-                // We're good to upload now
-                window.location.href = '/upload';
+                // Redirect to dashboard
+                window.location.href = '/dashboard';
             } else {
                 authError.textContent = data.message || 'Authentication failed.';
             }

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Order – Print Campus</title>
+    <meta name="description" content="Create a new print order on Print Campus.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="app-body">
+    <div class="app-layout">
+
+        <!-- ===== SIDEBAR ===== -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mark">CP</div>
+                <span class="logo-text">CampusPrint</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item" id="navDashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="/new-order" class="nav-item active" id="navNewOrder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                    New Order
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <span class="user-name" id="userName">Loading…</span>
+                        <span class="user-role">Student</span>
+                    </div>
+                </div>
+                <button class="logout-btn" id="logoutBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- ===== MAIN CONTENT ===== -->
+        <main class="main-content">
+            <a href="/dashboard" class="back-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                Back to Dashboard
+            </a>
+
+            <div class="content-header" style="margin-bottom:1.5rem;">
+                <div>
+                    <h1 class="page-title">Create Order</h1>
+                    <p class="page-subtitle">Configure your print settings and upload documents.</p>
+                </div>
+            </div>
+
+            <div class="new-order-layout">
+                <!-- Left: steps -->
+                <div class="order-steps">
+
+                    <!-- Step 1: Upload -->
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <span class="step-title">Upload Documents</span>
+                        </div>
+
+                        <div class="upload-zone" id="uploadZone">
+                            <input type="file" id="fileInput" multiple accept=".pdf,.docx,.doc,.png,.jpg,.jpeg">
+                            <div class="upload-zone-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="16 16 12 12 8 16"></polyline>
+                                    <line x1="12" y1="12" x2="12" y2="21"></line>
+                                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+                                </svg>
+                            </div>
+                            <h3>Drag &amp; drop files or click to browse</h3>
+                            <p>Support for PDF, DOCX, PNG, JPG &nbsp;(Up to 10 files)</p>
+                        </div>
+
+                        <div class="files-list" id="filesList"></div>
+                    </div>
+
+                    <!-- Step 2: Print Settings -->
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <span class="step-title">Print Settings</span>
+                        </div>
+
+                        <div class="settings-grid">
+                            <!-- Color Option -->
+                            <div class="setting-group">
+                                <span class="setting-label">Color Option</span>
+                                <div class="toggle-group" id="colorGroup">
+                                    <button class="toggle-option active" data-value="bw" id="optBw">B&amp;W (₹2/pg)</button>
+                                    <button class="toggle-option" data-value="color" id="optColor">Color (₹5/pg)</button>
+                                </div>
+                            </div>
+
+                            <!-- Paper Size -->
+                            <div class="setting-group">
+                                <span class="setting-label">Paper Size</span>
+                                <div class="toggle-group" id="sizeGroup">
+                                    <button class="toggle-option active" data-value="A4" id="optA4">A4</button>
+                                    <button class="toggle-option" data-value="A3" id="optA3">A3 (+₹10)</button>
+                                </div>
+                            </div>
+
+                            <!-- Copies -->
+                            <div class="setting-group">
+                                <span class="setting-label">Number of Copies</span>
+                                <div class="counter">
+                                    <button class="counter-btn" id="decrementBtn" aria-label="Decrease copies">−</button>
+                                    <span class="counter-value" id="copiesValue">1</span>
+                                    <button class="counter-btn" id="incrementBtn" aria-label="Increase copies">+</button>
+                                </div>
+                            </div>
+
+                            <!-- Add-ons -->
+                            <div class="setting-group">
+                                <span class="setting-label">Add-ons</span>
+                                <div class="addons-list">
+                                    <div class="addon-item" id="addonSpiral" data-addon="spiral">
+                                        <span class="addon-label">Spiral Binding (+₹20)</span>
+                                        <div class="addon-check">
+                                            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="2 6 5 9 10 3"></polyline>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="addon-item" id="addonExpress" data-addon="express">
+                                        <span class="addon-label">Express Delivery (+₹15)</span>
+                                        <div class="addon-check">
+                                            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="2 6 5 9 10 3"></polyline>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /order-steps -->
+
+                <!-- Right: Order Summary -->
+                <div class="order-summary">
+                    <h2 class="summary-title">Order Summary</h2>
+
+                    <div class="summary-lines">
+                        <div class="summary-line">
+                            <span class="summary-line-label" id="basePriceLabel">Base Price (1x)</span>
+                            <span class="summary-line-value" id="basePriceValue">₹2</span>
+                        </div>
+                        <div class="summary-line" id="a3LineWrap" style="display:none;">
+                            <span class="summary-line-label">A3 Upcharge</span>
+                            <span class="summary-line-value" id="a3LineValue">₹0</span>
+                        </div>
+                        <div class="summary-line" id="spiralLineWrap" style="display:none;">
+                            <span class="summary-line-label">Spiral Binding</span>
+                            <span class="summary-line-value">₹20</span>
+                        </div>
+                        <div class="summary-line" id="expressLineWrap" style="display:none;">
+                            <span class="summary-line-label">Express Delivery</span>
+                            <span class="summary-line-value">₹15</span>
+                        </div>
+                    </div>
+
+                    <div class="summary-divider"></div>
+
+                    <div class="summary-total">
+                        <span class="summary-total-label">Total</span>
+                        <span class="summary-total-amount" id="totalAmount">₹2</span>
+                    </div>
+
+                    <button class="confirm-btn" id="confirmBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                        Confirm &amp; Pay
+                    </button>
+                    <p class="summary-note" id="summaryNote">Please upload at least one file to continue.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <span class="toast-icon" id="toastIcon">✓</span>
+        <span id="toastMsg">Message</span>
+    </div>
+
+    <script src="new-order.js"></script>
+</body>
+
+</html>
