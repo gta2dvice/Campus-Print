@@ -1,3 +1,31 @@
+/* ── Hero Scroll Effect ── */
+
+// Smooth scroll to trusted section on arrow click
+function scrollToContent() {
+    const target = document.getElementById('main-content');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Blur hero background + fade/scale hero text as user scrolls
+const heroText = document.getElementById('heroText');
+
+window.addEventListener('scroll', () => {
+    const scrolled = window.scrollY;
+    const vh = window.innerHeight;
+
+    // Blur: 0px at top → 20px after 1 full viewport scrolled
+    const blurPower = Math.min((scrolled / vh) * 20, 20);
+    document.documentElement.style.setProperty('--hero-blur', `${blurPower}px`);
+
+    // Text: fade out and scale down slightly while within the first viewport
+    if (heroText && scrolled < vh) {
+        const opacity = Math.max(0, 1 - scrolled / (vh * 0.6));
+        const scale = 1 - scrolled / (vh * 5);
+        heroText.style.opacity = opacity;
+        heroText.style.transform = `scale(${scale})`;
+    }
+}, { passive: true });
+
 document.addEventListener('DOMContentLoaded', () => {
     const uploadBtn = document.getElementById('uploadBtn');
     const authModal = document.getElementById('authModal');
