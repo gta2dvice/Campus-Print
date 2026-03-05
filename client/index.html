@@ -12,35 +12,49 @@
 </head>
 
 <body>
-    <div class="layout-wrapper">
+
+    <!-- ── STICKY HERO (stays behind, blurs as you scroll) ── -->
+    <div class="hero-container" id="hero">
+
         <header class="top-nav">
             <nav>
-                <a href="#" class="nav-link">About Us</a>
+                <a href="about.html" class="nav-link">About Us</a>
                 <a href="#" class="nav-link">Location</a>
             </nav>
         </header>
 
-        <main class="hero-section">
-            <div class="hero-content">
-                <h1 class="hero-title">PRINT CAMPUS</h1>
-                <p class="hero-subtitle">Your ideas, printed fast & affordably</p>
+        <div class="hero-content" id="heroText">
+            <h1 class="hero-title">PRINT CAMPUS</h1>
+            <p class="hero-subtitle">Your ideas, printed fast &amp; affordably</p>
 
-                <div class="cta-buttons">
-                    <button class="btn btn-primary" id="uploadBtn">
-                        Upload Your Project
-                        <span class="arrow-icon">→</span>
-                    </button>
-                    <button class="btn btn-secondary">
-                        See Services & Pricing
-                    </button>
-                </div>
+            <div class="cta-buttons">
+                <button class="btn btn-primary" id="uploadBtn">
+                    Upload Your Project
+                    <span class="arrow-icon">→</span>
+                </button>
+                <button class="btn btn-secondary">
+                    See Services &amp; Pricing
+                </button>
             </div>
         </div>
+
+        <!-- Campus illustration sits at the bottom of the hero -->
         <div class="hero-bg">
             <img src="assets/bg.png" alt="Print Campus Storefronts">
         </div>
-    </main>
+
+        <!-- Scroll-down arrow -->
+        <div class="scroll-arrow" id="scrollArrow" onclick="scrollToContent()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
+            </svg>
         </div>
+    </div>
+
+    <!-- ── SLIDING CONTENT — slides over the sticky hero ── -->
+    <main class="reveal-wrapper" id="main-content">
+
         <section class="trusted-section">
             <div class="trusted-inner">
                 <h2 class="trusted-title">Trusted by Students</h2>
@@ -125,7 +139,9 @@
                 </div>
             </div>
         </section>
-            
+
+    </main>
+
 
     <!-- Auth Modal -->
     <div id="authModal" class="modal-overlay">
@@ -135,25 +151,26 @@
                 <button class="toggle-btn active" id="showLoginBtn">Login</button>
                 <button class="toggle-btn" id="showSignupBtn">Sign Up</button>
             </div>
-            
+
             <form id="authForm" class="auth-form">
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required placeholder="Enter your email">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required placeholder="Enter your password">
                 </div>
-                
+
                 <div class="form-group" id="confirmPasswordGroup" style="display: none;">
                     <label for="confirmPassword">Confirm Password</label>
-                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password">
+                    <input type="password" id="confirmPassword" name="confirmPassword"
+                        placeholder="Confirm your password">
                 </div>
-                
+
                 <div id="authError" class="auth-error"></div>
-                
+
                 <button type="submit" class="btn btn-primary submit-btn" id="authSubmitBtn">Login</button>
             </form>
         </div>

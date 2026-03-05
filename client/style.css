@@ -1,15 +1,13 @@
 :root {
     --bg-color: #f0f4f8;
-    /* Soft light blue/grey background */
     --text-primary: #111827;
-    /* Dark text for heading */
     --text-secondary: #4b5563;
-    /* Lighter text for subtitle */
     --primary-blue: #3b82f6;
-    /* Vibrant blue for button */
     --primary-blue-hover: #2563eb;
     --border-color: #d1d5db;
     --white: #ffffff;
+    --hero-blur: 0px;
+    /* controlled by scroll JS */
 }
 
 * {
@@ -24,22 +22,51 @@ body.modal-open {
 
 body {
     font-family: 'Inter', sans-serif;
-    /* background-color: var(--bg-color); */
     background: linear-gradient(to bottom, #f3f7fb 0%, #eaf1f7 100%);
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
 }
 
-.layout-wrapper {
-    position: relative;
-    min-height: 100vh;
+/* ── Sticky Hero (stays pinned, blurs on scroll) ── */
+.hero-container {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 100%;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    /* Blur is set by JS via the CSS variable */
+    filter: blur(var(--hero-blur, 0px));
+    transition: filter 0.08s linear;
+    overflow: hidden;
 }
 
-/* Navigation */
+/* ── Sliding card (reveal-wrapper) ── */
+/* 92vw width = hero peeks out on left & right for depth */
+.reveal-wrapper {
+    position: relative;
+    z-index: 2;
+    /* slides OVER the sticky hero */
+    width: 92vw;
+    margin: 0 auto;
+    background: #f3f7fb;
+    border-radius: 40px 40px 0 0;
+    box-shadow: 0 -30px 80px rgba(0, 0, 0, 0.22);
+    min-height: 120vh;
+    overflow: hidden;
+}
+
+
+/* Navigation — floats over the sticky hero */
 .top-nav {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: center;
     padding: 2rem 0;
@@ -80,6 +107,11 @@ body {
     text-align: center;
     max-width: 600px;
     z-index: 10;
+    position: relative;
+    /* JS drives opacity & scale on this element */
+    transition: opacity 0.1s linear, transform 0.1s linear;
+    padding-bottom: 22vh;
+    /* push up to make room for the bg illustration */
 }
 
 .hero-title {
@@ -184,6 +216,45 @@ body {
 img[src=""] {
     display: none;
 }
+
+/* Scroll-down arrow button */
+.scroll-arrow {
+    position: absolute;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: pointer;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 14px;
+    border-radius: 50%;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    animation: arrow-bounce 2s ease-in-out infinite;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.scroll-arrow:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+@keyframes arrow-bounce {
+
+    0%,
+    100% {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    50% {
+        transform: translateX(-50%) translateY(-8px);
+    }
+}
+
 
 /* Responsive Adjustments */
 @media (max-width: 1024px) {
@@ -393,17 +464,20 @@ img[src=""] {
 .upload-section .hero-subtitle {
     margin-bottom: 1.5rem;
 }
+
 /* TRUSTED SECTION – 3D rotating cards */
 .trusted-section {
     position: relative;
+    z-index: 10;
+    /* override — keep this above hero-fixed */
     min-height: 100vh;
     overflow: hidden;
-    display: flex;              /* 🔥 important */
-    align-items: center;        /* vertical center */
-    justify-content: center;    /* horizontal center */
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background-image: url("assets/3.png");
-    background-size: cover;        
-    background-position: center;   
+    background-size: cover;
+    background-position: center;
     background-repeat: no-repeat;
 }
 
@@ -418,9 +492,9 @@ img[src=""] {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px; 
-   
-    width: 100%; 
+    gap: 8px;
+
+    width: 100%;
 }
 
 .trusted-title {
@@ -460,6 +534,7 @@ img[src=""] {
     transform: perspective(var(--perspective));
     animation: trusted-rotate 26s linear infinite;
 }
+
 .trusted-wrapper {
     transform: translateY(-30px);
 }
@@ -554,6 +629,7 @@ img[src=""] {
         --translateZ: calc((var(--w) + var(--h)) + 20px);
     }
 }
+
 .trusted-wrapper {
     position: absolute;
     top: 50%;
