@@ -21,8 +21,16 @@ app.use(session({
     cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day
 }));
 
-// Static files
-app.use(express.static(path.join(__dirname, '../client')));
+// Static files — no caching in dev so changes show immediately
+app.use(express.static(path.join(__dirname, '../client'), {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+}));
 
 // ── API Routes ───────────────────────────────────
 app.use('/api/auth', authRoutes);

@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Print Campus - Skip Queue</title>
+    <meta name="description"
+        content="Print Campus – fast, affordable printing for students right on campus. Upload your files and skip the queue.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,13 +15,13 @@
 
 <body>
 
-    <!-- ── STICKY HERO (stays behind, blurs as you scroll) ── -->
+    <!-- ── STICKY HERO (stays pinned behind everything) ── -->
     <div class="hero-container" id="hero">
 
         <header class="top-nav">
             <nav>
                 <a href="about.html" class="nav-link">About Us</a>
-                <a href="#" class="nav-link">Location</a>
+                <a href="#location-section" class="nav-link">Location</a>
             </nav>
         </header>
 
@@ -55,6 +57,62 @@
     <!-- ── SLIDING CONTENT — slides over the sticky hero ── -->
     <main class="reveal-wrapper" id="main-content">
 
+        <!-- ── SECTION 1: Location ── -->
+        <section class="location-section" id="location-section">
+            <div class="location-inner">
+                <div class="location-text">
+                    <span class="location-tag">📍 Find Us</span>
+                    <h2 class="location-title">We're Right<br>On Campus</h2>
+                    <p class="location-subtitle">
+                        No need to leave campus for your prints. We're located right at the heart of the college,
+                        just steps away from the main block.
+                    </p>
+                    <div class="location-details">
+                        <div class="location-detail-item">
+                            <span class="detail-icon">🏛️</span>
+                            <div>
+                                <strong>Address</strong>
+                                <p>Ground Floor, Main Academic Block<br>Near Admin Office, Campus Gate 2</p>
+                            </div>
+                        </div>
+                        <div class="location-detail-item">
+                            <span class="detail-icon">🕐</span>
+                            <div>
+                                <strong>Hours</strong>
+                                <p>Mon – Sat: 9:00 AM – 6:00 PM<br>Sunday: Closed</p>
+                            </div>
+                        </div>
+                        <div class="location-detail-item">
+                            <span class="detail-icon">📞</span>
+                            <div>
+                                <strong>Contact</strong>
+                                <p>+91 98765 43210<br>printcampus@college.edu</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="location-map-card">
+                    <div class="map-placeholder">
+                        <div class="map-pin-anim">
+                            <div class="map-pin">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b82f6"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 21s-8-7.5-8-12a8 8 0 1 1 16 0c0 4.5-8 12-8 12z" />
+                                    <circle cx="12" cy="9" r="2.5" fill="#3b82f6" stroke="none" />
+                                </svg>
+                            </div>
+                            <div class="pin-pulse"></div>
+                        </div>
+                        <p class="map-label">Print Campus<br><span>Main Academic Block</span></p>
+                        <a href="https://maps.google.com" target="_blank" class="btn btn-primary map-btn">
+                            Open in Maps <span class="arrow-icon">→</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── SECTION 2: Trusted by Students ── -->
         <section class="trusted-section">
             <div class="trusted-inner">
                 <h2 class="trusted-title">Trusted by Students</h2>
@@ -140,8 +198,38 @@
             </div>
         </section>
 
-    </main>
+        <!-- ── FOOTER ── -->
+        <footer class="site-footer">
+            <!-- Background watermark -->
+            <div class="footer-watermark">PRINT CAMPUS</div>
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <span class="footer-logo">PRINT CAMPUS</span>
+                    <p class="footer-tagline">Skip the queue. Print smarter.</p>
+                </div>
 
+                <div class="footer-links">
+                    <div class="footer-col">
+                        <h4>Navigate</h4>
+                        <a href="about.html">About Us</a>
+                        <a href="#location-section">Location</a>
+                        <a href="#" id="footerUploadBtn">Upload &amp; Print</a>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Connect</h4>
+                        <a href="https://instagram.com" target="_blank">Instagram</a>
+                        <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+                        <a href="mailto:printcampus@college.edu">Email Us</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© 2025 Print Campus. Made with ❤️ for students.</p>
+            </div>
+        </footer>
+
+    </main>
 
     <!-- Auth Modal -->
     <div id="authModal" class="modal-overlay">
