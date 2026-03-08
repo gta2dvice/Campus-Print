@@ -34,7 +34,7 @@
                     Upload Your Project
                     <span class="arrow-icon">→</span>
                 </button>
-                <button class="btn btn-secondary">
+                <button class="btn btn-secondary" id="seePricingBtn" type="button">
                     See Services &amp; Pricing
                 </button>
             </div>
@@ -42,7 +42,7 @@
 
         <!-- Campus illustration sits at the bottom of the hero -->
         <div class="hero-bg">
-            <img src="assets/bg.png" alt="Print Campus Storefronts">
+            <img src="assets/bg1.png" alt="Print Campus Storefronts">
         </div>
 
         <!-- Scroll-down arrow -->
@@ -58,7 +58,7 @@
     <main class="reveal-wrapper" id="main-content">
 
         <!-- ── SECTION 1: Location ── -->
-        <section class="location-section" id="location-section">
+        <section class="location-section reveal" id="location-section">
             <div class="location-inner">
                 <div class="location-text">
                     <span class="location-tag">📍 Find Us</span>
@@ -72,14 +72,14 @@
                             <span class="detail-icon">🏛️</span>
                             <div>
                                 <strong>Address</strong>
-                                <p>Ground Floor, Main Academic Block<br>Near Admin Office, Campus Gate 2</p>
+                                <p>Ground Floor, Main Academic Block<br>Near Green Canteen, Campus Gate 1</p>
                             </div>
                         </div>
                         <div class="location-detail-item">
                             <span class="detail-icon">🕐</span>
                             <div>
                                 <strong>Hours</strong>
-                                <p>Mon – Sat: 9:00 AM – 6:00 PM<br>Sunday: Closed</p>
+                                <p>Mon –Fri: 9:00 AM – 4:00 PM<br>Sunday & Saturday: Closed</p>
                             </div>
                         </div>
                         <div class="location-detail-item">
@@ -104,16 +104,16 @@
                             <div class="pin-pulse"></div>
                         </div>
                         <p class="map-label">Print Campus<br><span>Main Academic Block</span></p>
-                        <a href="https://maps.google.com" target="_blank" class="btn btn-primary map-btn">
-                            Open in Maps <span class="arrow-icon">→</span>
-                        </a>
+                        <a href="https://maps.app.goo.gl/XY3vxUKK42mQsFqz9" target="_blank" class="btn btn-primary map-btn">
+Open in Maps →
+</a>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- ── SECTION 2: Trusted by Students ── -->
-        <section class="trusted-section">
+        <section class="trusted-section reveal">
             <div class="trusted-inner">
                 <h2 class="trusted-title">Trusted by Students</h2>
                 <p class="trusted-subtitle">
@@ -197,9 +197,132 @@
                 </div>
             </div>
         </section>
+        <!-- ── SECTION 3: Pricing ── -->
+        <section class="pricing-section reveal" id="pricing-section">
+            <!-- Decorative orbs -->
+            <div class="pricing-orb pricing-orb-1"></div>
+            <div class="pricing-orb pricing-orb-2"></div>
+
+            <div class="pricing-inner">
+                <!-- Header -->
+                <div class="pricing-header">
+                    <span class="pricing-tag">💰 Transparent Pricing</span>
+                    <h2 class="pricing-title">Simple &amp; Affordable</h2>
+                    <p class="pricing-subtitle">
+                        No hidden charges. Slide through the options below and see your estimated cost instantly.
+                    </p>
+                </div>
+
+                <!-- Cards Row -->
+                <div class="pricing-cards-row">
+
+                    <!-- Card 1: Color Mode -->
+                    <div class="pricing-card" id="pcColorCard">
+                        <div class="pc-icon">🖨️</div>
+                        <h3 class="pc-title">Color Mode</h3>
+                        <div class="pc-toggle-group" id="pcColorGroup">
+                            <button class="pc-chip active" data-pc-color="bw" id="pcChipBw">
+                                B&amp;W
+                                <span class="pc-chip-price">₹2 / page</span>
+                            </button>
+                            <button class="pc-chip" data-pc-color="color" id="pcChipColor">
+                                Color
+                                <span class="pc-chip-price">₹5 / page</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Paper Size -->
+                    <div class="pricing-card" id="pcSizeCard">
+                        <div class="pc-icon">📄</div>
+                        <h3 class="pc-title">Paper Size</h3>
+                        <div class="pc-toggle-group" id="pcSizeGroup">
+                            <button class="pc-chip active" data-pc-size="A4" id="pcChipA4">
+                                A4
+                                <span class="pc-chip-price">Standard</span>
+
+                            </button>
+                            <button class="pc-chip" data-pc-size="A3" id="pcChipA3">
+                                A3
+                                <span class="pc-chip-price">+₹10</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Add-ons -->
+                    <div class="pricing-card pc-addon-card" id="pcAddonCard">
+                        <div class="pc-icon">✨</div>
+                        <h3 class="pc-title">Add-ons</h3>
+                        <div class="pc-addons">
+                            <label class="pc-addon-row" id="pcAddonSpiral">
+                                <input type="checkbox" class="pc-addon-check" data-addon="spiral" data-price="20"
+                                    id="pcCheckSpiral">
+                                <span class="pc-addon-box"></span>
+                                <span class="pc-addon-text">Spiral Binding</span>
+                                <span class="pc-addon-badge">+₹20</span>
+                            </label>
+                            <label class="pc-addon-row" id="pcAddonExpress">
+                                <input type="checkbox" class="pc-addon-check" data-addon="express" data-price="15"
+                                    id="pcCheckExpress">
+                                <span class="pc-addon-box"></span>
+                                <span class="pc-addon-text">Express Delivery</span>
+                                <span class="pc-addon-badge">+₹15</span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div><!-- /pricing-cards-row -->
+
+                <!-- Slider Section -->
+                <div class="pricing-slider-wrap">
+                    <div class="slider-label-row">
+                        <span class="slider-label-text">Number of Pages</span>
+                        <span class="slider-value-badge" id="pcPagesDisplay">10 pages</span>
+                    </div>
+                    <div class="slider-track-wrap">
+                        <input type="range" class="pricing-range" id="pcPagesSlider" min="1" max="200" value="10"
+                            step="1" aria-label="Number of pages">
+                        <div class="slider-fill" id="pcSliderFill"></div>
+                    </div>
+                    <div class="slider-ends">
+                        <span>1 page</span>
+                        <span>200 pages</span>
+                    </div>
+                </div>
+
+                <!-- Live Total -->
+                <div class="pricing-total-wrap">
+                    <div class="pricing-total-card">
+                        <div class="ptc-breakdown" id="pcBreakdown">
+                            <span class="ptc-line"><span class="ptc-line-label" id="ptcBaseLabel">10 pages × ₹2
+                                    (B&W)</span><span class="ptc-line-val" id="ptcBaseVal">₹20</span></span>
+                            <span class="ptc-line ptc-line-hidden" id="ptcSizeLine"><span class="ptc-line-label">A3
+                                    Upcharge</span><span class="ptc-line-val" id="ptcSizeVal">₹10</span></span>
+                            <span class="ptc-line ptc-line-hidden" id="ptcSpiralLine"><span
+                                    class="ptc-line-label">Spiral Binding</span><span
+                                    class="ptc-line-val">₹20</span></span>
+                            <span class="ptc-line ptc-line-hidden" id="ptcExpressLine"><span
+                                    class="ptc-line-label">Express Delivery</span><span
+                                    class="ptc-line-val">₹15</span></span>
+                        </div>
+                        <div class="ptc-divider"></div>
+                        <div class="ptc-total-row">
+                            <span class="ptc-total-label">Estimated Total</span>
+                            <span class="ptc-total-amount" id="pcTotalAmount">₹20</span>
+                        </div>
+                        <p class="ptc-note">Final price calculated per page after upload. Copies can be set in the order
+                            form.</p>
+                        <button class="btn btn-primary ptc-order-btn" id="ptcOrderBtn">
+                            Start Your Order <span class="arrow-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
 
         <!-- ── FOOTER ── -->
-        <footer class="site-footer">
+        <footer class="site-footer reveal">
             <!-- Background watermark -->
             <div class="footer-watermark">PRINT CAMPUS</div>
             <div class="footer-inner">
@@ -207,6 +330,7 @@
                     <span class="footer-logo">PRINT CAMPUS</span>
                     <p class="footer-tagline">Skip the queue. Print smarter.</p>
                 </div>
+                <button class="pc-footer-cta">Print</button>
 
                 <div class="footer-links">
                     <div class="footer-col">
@@ -222,10 +346,6 @@
                         <a href="mailto:printcampus@college.edu">Email Us</a>
                     </div>
                 </div>
-            </div>
-
-            <div class="footer-bottom">
-                <p>© 2025 Print Campus. Made with ❤️ for students.</p>
             </div>
         </footer>
 
