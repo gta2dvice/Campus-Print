@@ -39,6 +39,8 @@ async function initDb() {
             express_delivery TINYINT(1)    DEFAULT 0,
             total_price      DECIMAL(10,2) DEFAULT 0.00,
             file_count       INT           DEFAULT 0,
+            collection_location VARCHAR(64) NULL,
+            collection_time     VARCHAR(32) NULL,
             created_at       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )

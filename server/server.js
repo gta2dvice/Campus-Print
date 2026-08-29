@@ -5,6 +5,7 @@ const session = require('express-session');
 
 const authRoutes = require('./routes/auth');
 const orderRoutes = require('./routes/orders');
+const Order = require('./models/Order');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +42,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
+// Standalone Dev/Test route for slot selection flow without auth/login requirement
+app.get('/select-location', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/select-location.html'));
+});
+
 app.get('/dashboard', (req, res) => {
     if (req.session && req.session.userId) {
         res.sendFile(path.join(__dirname, '../client/dashboard.html'));
@@ -57,6 +63,11 @@ app.get('/new-order', (req, res) => {
     }
 });
 
+// Standalone Dev/Test route for ticket pass display after payment simulation
+app.get('/ticket', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/ticket.html'));
+});
+
 // Keep legacy /upload route pointing to dashboard
 app.get('/upload', (req, res) => {
     if (req.session && req.session.userId) {
@@ -67,6 +78,11 @@ app.get('/upload', (req, res) => {
 });
 
 // ── Start Server ─────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+    try {
+        await Order.ensureBookingColumns();
+    } catch (err) {
+        console.warn('Could not ensure booking columns:', err.message);
+    }
     console.log(`Server running on http://localhost:${PORT}`);
 });

@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         finally { window.location.href = '/'; }
     });
 
-    // ── State ────────────────────────────────────
+    // ── Order Configuration State ────────────────
     let files = [];
     let colorOption = 'bw';   // 'bw' | 'color'
     let paperSize = 'A4';   // 'A4' | 'A3'
@@ -33,6 +33,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let expressDelivery = false;
 
     const PRICE = { bw: 2, color: 5, a3Extra: 10, spiral: 20, express: 15 };
+
+    // ── Booking Flow State ───────────────────────
+    let selectedLocationId = null;
+    let selectedLocationName = null;
+    let selectedTimeSlot = null;
+    let currentStep = 'location'; // 'location' | 'slot' | 'review'
 
     // ── File Upload ──────────────────────────────
     const uploadZone = document.getElementById('uploadZone');
@@ -181,13 +187,266 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initial summary render
     updateSummary();
 
-    // ── Confirm & Pay ────────────────────────────
-    document.getElementById('confirmBtn').addEventListener('click', async () => {
-        if (files.length === 0) return;
+    // ── Booking Flow Modal Elements ──────────────
+    const bookingOverlay = document.getElementById('bookingOverlay');
+    const bookingClose = document.getElementById('bookingClose');
 
-        const confirmBtn = document.getElementById('confirmBtn');
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<span class="loading-spinner"></span>&nbsp; Placing Order…';
+    const stepLocationSec = document.getElementById('bookingStepLocation');
+    const stepSlotSec = document.getElementById('bookingStepSlot');
+    const stepReviewSec = document.getElementById('bookingStepReview');
+
+    const locationGrid = document.getElementById('locationGrid');
+    const locationContinue = document.getElementById('locationContinue');
+
+    const slotLocationLabel = document.getElementById('slotLocationLabel');
+    const slotGrid = document.getElementById('slotGrid');
+    const slotBack = document.getElementById('slotBack');
+    const slotContinue = document.getElementById('slotContinue');
+
+    const reviewLocation = document.getElementById('reviewLocation');
+    const reviewTime = document.getElementById('reviewTime');
+    const reviewOrderLines = document.getElementById('reviewOrderLines');
+    const reviewTotal = document.getElementById('reviewTotal');
+    const reviewBack = document.getElementById('reviewBack');
+    const proceedPayBtn = document.getElementById('proceedPayBtn');
+
+    const progressSteps = bookingOverlay ? bookingOverlay.querySelectorAll('.cp-nav-step') : [];
+
+    function updateProgressUI(activeStep) {
+        currentStep = activeStep;
+        progressSteps.forEach(step => {
+            const stepName = step.dataset.step;
+            step.classList.remove('is-active', 'is-done');
+            if (stepName === activeStep) {
+                step.classList.add('is-active');
+            } else if (
+                (activeStep === 'slot' && stepName === 'location') ||
+                (activeStep === 'review' && (stepName === 'location' || stepName === 'slot'))
+            ) {
+                step.classList.add('is-done');
+            }
+        });
+    }
+
+    progressSteps.forEach(step => {
+        step.addEventListener('click', () => {
+            const targetStep = step.dataset.step;
+            if (targetStep === 'location') {
+                goToStep('location');
+            } else if (targetStep === 'slot' && selectedLocationId) {
+                goToStep('slot');
+            } else if (targetStep === 'review' && selectedLocationId && selectedTimeSlot) {
+                goToStep('review');
+            }
+        });
+    });
+
+    function openBookingModal() {
+        if (files.length === 0) {
+            showToast('Please upload at least one file to continue.', 'error');
+            return;
+        }
+        bookingOverlay.removeAttribute('hidden');
+        document.body.style.overflow = 'hidden';
+        goToStep('location');
+    }
+
+    function closeBookingModal() {
+        bookingOverlay.setAttribute('hidden', '');
+        document.body.style.overflow = '';
+    }
+
+    if (bookingClose) bookingClose.addEventListener('click', closeBookingModal);
+
+    if (bookingOverlay) {
+        bookingOverlay.addEventListener('click', (e) => {
+            if (e.target === bookingOverlay) closeBookingModal();
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && bookingOverlay && !bookingOverlay.hasAttribute('hidden')) {
+            closeBookingModal();
+        }
+    });
+
+    function goToStep(step) {
+        stepLocationSec.setAttribute('hidden', '');
+        stepSlotSec.setAttribute('hidden', '');
+        stepReviewSec.setAttribute('hidden', '');
+
+        if (step === 'location') {
+            stepLocationSec.removeAttribute('hidden');
+            updateProgressUI('location');
+            renderLocationStep();
+        } else if (step === 'slot') {
+            stepSlotSec.removeAttribute('hidden');
+            updateProgressUI('slot');
+            renderSlotStep();
+        } else if (step === 'review') {
+            stepReviewSec.removeAttribute('hidden');
+            updateProgressUI('review');
+            renderReviewStep();
+        }
+    }
+
+    // ── Step 1: Select Location ──
+    function renderLocationStep() {
+        const locationCards = locationGrid.querySelectorAll('.cp-loc-card');
+        locationCards.forEach(card => {
+            const locId = card.dataset.locationId;
+            const isSelected = locId === selectedLocationId;
+            card.classList.toggle('is-selected', isSelected);
+
+            card.onclick = () => {
+                locationCards.forEach(c => c.classList.remove('is-selected'));
+                card.classList.add('is-selected');
+                selectedLocationId = card.dataset.locationId;
+                selectedLocationName = card.dataset.locationName;
+                locationContinue.disabled = false;
+            };
+        });
+
+        locationContinue.disabled = !selectedLocationId;
+    }
+
+    locationContinue.addEventListener('click', () => {
+        if (!selectedLocationId) return;
+        goToStep('slot');
+    });
+
+    // ── Step 2: Select Time Slot ──
+    async function renderSlotStep() {
+        slotLocationLabel.textContent = selectedLocationName || '—';
+        slotContinue.disabled = !selectedTimeSlot;
+
+        slotGrid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 1.5rem 0; color: var(--text-muted);">
+                <span class="loading-spinner" style="border-color: rgba(59,130,246,0.3); border-top-color: var(--primary);"></span>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem;">Loading available time slots...</p>
+            </div>
+        `;
+
+        let slotsData = [];
+        try {
+            const res = await fetch(`/api/orders/slots?location=${encodeURIComponent(selectedLocationId)}`, { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                slotsData = data.slots || [];
+            }
+        } catch (e) {
+            console.warn('Could not fetch slots via API:', e);
+        }
+
+        // Fallback calculation matching backend seed if API fails
+        if (!slotsData || slotsData.length === 0) {
+            const SEED = {
+                'main-gate|9:25 AM': 1, 'main-gate|11:05 AM': 2, 'main-gate|1:15 PM': 5, 'main-gate|2:05 PM': 0, 'main-gate|4:00 PM': 6,
+                'academic-block|9:25 AM': 6, 'academic-block|11:05 AM': 1, 'academic-block|1:15 PM': 2, 'academic-block|2:05 PM': 5, 'academic-block|4:00 PM': 0,
+                'hostel-gate|9:25 AM': 2, 'hostel-gate|11:05 AM': 6, 'hostel-gate|1:15 PM': 0, 'hostel-gate|2:05 PM': 1, 'hostel-gate|4:00 PM': 5
+            };
+            const TIMES = ['9:25 AM', '11:05 AM', '1:15 PM', '2:05 PM', '4:00 PM'];
+            slotsData = TIMES.map(time => {
+                const booked = SEED[`${selectedLocationId}|${time}`] || 0;
+                let status = 'available';
+                if (booked >= 6) status = 'full';
+                else if (booked >= 5) status = 'limited';
+                return { time, status, booked, capacity: 6 };
+            });
+        }
+
+        slotGrid.innerHTML = slotsData.map(s => {
+            const isFull = s.status === 'full';
+            const isLimited = s.status === 'limited';
+            const isSelected = selectedTimeSlot === s.time;
+
+            let statusLabel = 'Available';
+            if (isFull) statusLabel = 'Fully Booked';
+            else if (isLimited) statusLabel = 'Limited';
+
+            let classes = 'cp-slot-pill';
+            if (isFull) classes += ' is-full';
+            else if (isLimited) classes += ' is-limited';
+            else classes += ' is-available';
+
+            if (isSelected) classes += ' is-selected';
+
+            return `
+                <button type="button" class="${classes}" data-slot="${s.time}" ${isFull ? 'disabled' : ''}>
+                    <span class="cp-slot-time-text">${s.time}</span>
+                    <span class="cp-slot-tag">${statusLabel}</span>
+                </button>
+            `;
+        }).join('');
+
+        slotGrid.querySelectorAll('.cp-slot-pill:not(:disabled)').forEach(chip => {
+            chip.addEventListener('click', () => {
+                slotGrid.querySelectorAll('.cp-slot-pill').forEach(c => c.classList.remove('is-selected'));
+                chip.classList.add('is-selected');
+                selectedTimeSlot = chip.dataset.slot;
+                slotContinue.disabled = false;
+            });
+        });
+    }
+
+    slotBack.addEventListener('click', () => goToStep('location'));
+    slotContinue.addEventListener('click', () => {
+        if (!selectedTimeSlot) return;
+        goToStep('review');
+    });
+
+    // ── Step 3: Review Booking ──
+    function renderReviewStep() {
+        reviewLocation.textContent = selectedLocationName || '—';
+        reviewTime.textContent = selectedTimeSlot || '—';
+
+        const p = calcPrice();
+        const colorText = colorOption === 'bw' ? 'B&W (₹2/pg)' : 'Color (₹5/pg)';
+        const sizeText = paperSize === 'A3' ? 'A3 (+₹10)' : 'A4';
+        const fileNames = files.map(f => f.name).join(', ');
+
+        const lines = [
+            `<div class="cp-review-line"><span>Documents (${files.length} file${files.length > 1 ? 's' : ''})</span><strong>${fileNames}</strong></div>`,
+            `<div class="cp-review-line"><span>Print Mode</span><strong>${colorText}</strong></div>`,
+            `<div class="cp-review-line"><span>Paper &amp; Copies</span><strong>${sizeText} · ${copies} Copy${copies > 1 ? 'ies' : ''}</strong></div>`
+        ];
+
+        if (spiralBinding) {
+            lines.push(`<div class="cp-review-line"><span>Add-on</span><strong>Spiral Binding (+₹20)</strong></div>`);
+        }
+        if (expressDelivery) {
+            lines.push(`<div class="cp-review-line"><span>Add-on</span><strong>Express Delivery (+₹15)</strong></div>`);
+        }
+
+        reviewOrderLines.innerHTML = lines.join('');
+        reviewTotal.textContent = `₹${p.total}`;
+    }
+
+    reviewBack.addEventListener('click', () => goToStep('slot'));
+
+    // Handle Edit buttons on review step
+    stepReviewSec.querySelectorAll('.cp-inline-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const editTarget = btn.dataset.edit;
+            if (editTarget === 'location') goToStep('location');
+            else if (editTarget === 'slot') goToStep('slot');
+        });
+    });
+
+    // ── "Start Order" Button Event ──
+    document.getElementById('confirmBtn').addEventListener('click', () => {
+        openBookingModal();
+    });
+
+    // ── "Proceed to Payment" Button Event ──
+    proceedPayBtn.addEventListener('click', async () => {
+        if (!selectedLocationId || !selectedTimeSlot) {
+            showToast('Please select a collection location and time slot.', 'error');
+            return;
+        }
+
+        proceedPayBtn.disabled = true;
+        proceedPayBtn.innerHTML = '<span class="loading-spinner"></span>&nbsp; Processing Payment…';
 
         const p = calcPrice();
         const payload = {
@@ -197,7 +456,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             spiralBinding,
             expressDelivery,
             totalPrice: p.total,
-            fileCount: files.length
+            fileCount: files.length,
+            collectionLocationId: selectedLocationId,
+            collectionLocation: selectedLocationName,
+            collectionTime: selectedTimeSlot
         };
 
         try {
@@ -209,32 +471,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (res.ok) {
+                closeBookingModal();
                 showToast('Order placed successfully! 🎉', 'success');
                 setTimeout(() => window.location.href = '/dashboard', 1800);
             } else {
                 const data = await res.json();
                 showToast(data.message || 'Failed to place order.', 'error');
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = `
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                        <line x1="1" y1="10" x2="23" y2="10"></line>
-                    </svg>
-                    Confirm &amp; Pay`;
+                proceedPayBtn.disabled = false;
+                proceedPayBtn.textContent = 'Proceed to Payment';
             }
         } catch {
             showToast('Connection error. Please try again.', 'error');
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                    <line x1="1" y1="10" x2="23" y2="10"></line>
-                </svg>
-                Confirm &amp; Pay`;
+            proceedPayBtn.disabled = false;
+            proceedPayBtn.textContent = 'Proceed to Payment';
         }
     });
 
-    // ── Toast ────────────────────────────────────
+    // ── Toast Notification ───────────────────────
     function showToast(msg, type = 'success') {
         const toast = document.getElementById('toast');
         toast.className = `toast ${type}`;

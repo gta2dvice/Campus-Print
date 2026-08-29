@@ -1,0 +1,679 @@
+/* ==========================================================================
+   TICKET.CSS – Premium Campus Prints Collection Ticket Pass
+   Visual Inspiration: Physical Ticket Pass
+   Theme Source of Truth: Campus Prints Homepage Design Tokens & Atmospheric Canvas
+   ========================================================================== */
+
+/* ── Page Layout & Base ────────────────────────────────────────── */
+html, body.ticket-page-body {
+    max-width: 100%;
+    overflow-x: hidden !important;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ticket-page-body {
+    min-height: 100vh;
+    background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 45%, #0c4a6e 100%);
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+.ticket-page-wrapper {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.25rem 4rem;
+    isolation: isolate;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+.ticket-main-content {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: ticketFadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ticketFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── 1. Top Success Header ─────────────────────────────────────── */
+.ticket-success-header {
+    text-align: center;
+    margin-bottom: 2.25rem;
+    width: 100%;
+}
+
+.success-badge-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(56, 189, 248, 0.12);
+    border: 2px solid #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #38bdf8;
+    margin: 0 auto 1.25rem;
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.35), inset 0 0 15px rgba(56, 189, 248, 0.2);
+    animation: badgePulse 2.5s infinite ease-in-out;
+}
+
+@keyframes badgePulse {
+    0%, 100% {
+        box-shadow: 0 0 25px rgba(56, 189, 248, 0.35), inset 0 0 15px rgba(56, 189, 248, 0.2);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(56, 189, 248, 0.55), inset 0 0 20px rgba(56, 189, 248, 0.3);
+        transform: scale(1.04);
+    }
+}
+
+.success-heading {
+    font-family: 'Quantico', sans-serif;
+    font-size: clamp(2.1rem, 5vw, 2.8rem);
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.4rem;
+    line-height: 1.15;
+}
+
+.highlight-cyan {
+    color: #38bdf8;
+    text-shadow: 0 0 16px rgba(56, 189, 248, 0.45);
+}
+
+.success-subtitle {
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: #e2e8f0;
+    margin-bottom: 0.25rem;
+}
+
+.success-note {
+    font-size: 0.88rem;
+    color: #94a3b8;
+}
+
+/* ── 2. Creative Physical Ticket Pass Card ─────────────────────── */
+.ticket-card-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    border-radius: 24px;
+    box-shadow: 
+        0 25px 60px -10px rgba(0, 0, 0, 0.6),
+        0 0 45px rgba(59, 130, 246, 0.22);
+    margin-bottom: 2rem;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.ticket-card-wrapper:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+        0 30px 70px -10px rgba(0, 0, 0, 0.7),
+        0 0 55px rgba(59, 130, 246, 0.3);
+}
+
+/* Left Vertical Stub Strip */
+.ticket-left-stub {
+    width: 56px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+    border-top-left-radius: 24px;
+    border-bottom-left-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 1.25rem 0;
+    overflow: hidden;
+}
+
+.stub-brand-text {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: 'Protest Guerrilla', 'Quantico', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.24em;
+    color: rgba(255, 255, 255, 0.95);
+    text-transform: uppercase;
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* Perforation Line & Cutout Notches */
+.ticket-perforation-line {
+    width: 2px;
+    background: repeating-linear-gradient(to bottom, #cbd5e1 0px, #cbd5e1 6px, transparent 6px, transparent 13px);
+    flex-shrink: 0;
+    z-index: 3;
+}
+
+.ticket-notch {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: #0f1e38; /* Matches the ambient canvas background color behind ticket */
+    border-radius: 50%;
+    z-index: 6;
+    left: 45px; /* Centers exactly on the perforation line (56px stub width - 11px radius) */
+}
+
+.notch-top {
+    top: -11px;
+    box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.notch-bottom {
+    bottom: -11px;
+    box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Main Ticket Body (Ivory Premium Paper Pass) */
+.ticket-main-body {
+    flex: 1;
+    background: #fdfbf7; /* Warm ivory premium ticket material */
+    border-top-right-radius: 24px;
+    border-bottom-right-radius: 24px;
+    padding: 2rem 1.75rem;
+    color: #0f172a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.ticket-microcopy {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Quantico', sans-serif;
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: #2563eb;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+}
+
+.star-ornament {
+    font-size: 0.65rem;
+    color: #3b82f6;
+}
+
+.ticket-number-display {
+    text-align: center;
+    margin-bottom: 0.75rem;
+}
+
+.cp-ticket-code {
+    font-family: 'Quantico', sans-serif;
+    font-size: clamp(2.8rem, 8vw, 3.6rem);
+    font-weight: 700;
+    color: #1e3a8a;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
+}
+
+.ticket-divider {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.75rem;
+    margin-bottom: 1.4rem;
+}
+
+.divider-line {
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+}
+
+.divider-diamond {
+    font-size: 0.6rem;
+    color: #3b82f6;
+}
+
+/* Ticket Info List */
+.ticket-info-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.ticket-info-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    transition: background 0.2s ease;
+}
+
+.ticket-info-row.highlight-row {
+    background: rgba(37, 99, 235, 0.05);
+    border-color: rgba(37, 99, 235, 0.22);
+}
+
+.info-icon-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+}
+
+.loc-badge, .time-badge {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #2563eb;
+}
+
+.info-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.info-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 0.15rem;
+}
+
+.info-label.label-accent {
+    color: #2563eb;
+}
+
+.info-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.info-value.font-mono {
+    font-family: 'Quantico', monospace, sans-serif;
+    letter-spacing: 0.03em;
+}
+
+.info-value.value-prominent {
+    font-size: 1.18rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Handwritten Thanks Note */
+.ticket-footer-note {
+    margin-top: 1.5rem;
+    text-align: center;
+    border-top: 1px dashed #e2e8f0;
+    width: 100%;
+    padding-top: 1rem;
+}
+
+.script-thanks {
+    font-family: 'Caveat', cursive, sans-serif;
+    font-size: 1.45rem;
+    color: #334155;
+    font-weight: 600;
+}
+
+/* ── 3. Collection Reminder Box ────────────────────────────────── */
+.ticket-reminder-box {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    backdrop-filter: blur(16px);
+    border-radius: 18px;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.reminder-icon {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.reminder-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.reminder-title {
+    font-size: 0.96rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.15rem;
+}
+
+.reminder-desc {
+    font-size: 0.84rem;
+    color: #94a3b8;
+}
+
+/* ── 4. Action Buttons ─────────────────────────────────────────── */
+.ticket-action-buttons {
+    width: 100%;
+    max-width: 480px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.ticket-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1.25rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    height: 52px;
+    box-sizing: border-box;
+}
+
+.ticket-btn-primary {
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+}
+
+.ticket-btn-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.5);
+}
+
+.ticket-btn-outline {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(10px);
+}
+
+.ticket-btn-outline:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+    transform: translateY(-2px);
+}
+
+/* ── 5. Mobile Responsiveness (iPhone 16 Pro Max 440x956 & Portrait Phones) ── */
+@media (max-width: 520px) {
+    .ticket-page-body {
+        min-height: 100vh;
+        height: auto;
+    }
+
+    .ticket-page-wrapper {
+        min-height: auto; /* Content collapses to its natural height, ending ~24-32px after Back to Home */
+        padding: 1.25rem 1rem 2rem;
+        justify-content: flex-start;
+        box-sizing: border-box;
+    }
+
+    .ticket-main-content {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Top Success Header Spacing */
+    .ticket-success-header {
+        margin-bottom: 1.15rem;
+        box-sizing: border-box;
+    }
+
+    .success-badge-circle {
+        width: 46px;
+        height: 46px;
+        margin-bottom: 0.6rem;
+    }
+
+    .success-badge-circle svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .success-heading {
+        font-size: 1.65rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .success-subtitle {
+        font-size: 0.92rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .success-note {
+        font-size: 0.8rem;
+    }
+
+    /* Ticket Pass Proportions & Density */
+    .ticket-card-wrapper {
+        width: calc(100% - 32px);
+        max-width: 408px;
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 1.15rem;
+        border-radius: 20px;
+        box-sizing: border-box;
+    }
+
+    .ticket-left-stub {
+        width: 40px;
+        border-top-left-radius: 20px;
+        border-bottom-left-radius: 20px;
+        padding: 0.75rem 0;
+        box-sizing: border-box;
+    }
+
+    .stub-brand-text {
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+    }
+
+    .ticket-perforation-line {
+        background: repeating-linear-gradient(to bottom, #cbd5e1 0px, #cbd5e1 5px, transparent 5px, transparent 11px);
+    }
+
+    .ticket-notch {
+        width: 18px;
+        height: 18px;
+        left: 31px; /* 40px stub width - 9px radius */
+    }
+
+    .notch-top {
+        top: -9px;
+    }
+
+    .notch-bottom {
+        bottom: -9px;
+    }
+
+    .ticket-main-body {
+        border-top-right-radius: 20px;
+        border-bottom-right-radius: 20px;
+        padding: 1.15rem 0.95rem;
+        box-sizing: border-box;
+        min-width: 0;
+    }
+
+    .ticket-microcopy {
+        font-size: 0.66rem;
+        margin-bottom: 0.4rem;
+        gap: 0.35rem;
+    }
+
+    .cp-ticket-code {
+        font-size: 2.35rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .ticket-divider {
+        margin-bottom: 0.85rem;
+        gap: 0.5rem;
+    }
+
+    /* Compact Metadata List */
+    .ticket-info-list {
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .ticket-info-row {
+        padding: 0.48rem 0.75rem;
+        gap: 0.75rem;
+        border-radius: 11px;
+        box-sizing: border-box;
+        min-width: 0;
+    }
+
+    .info-icon-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+    }
+
+    .info-icon-badge svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .info-details {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .info-label {
+        font-size: 0.6rem;
+        margin-bottom: 0.1rem;
+    }
+
+    .info-value {
+        font-size: 0.88rem;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        min-width: 0;
+    }
+
+    .info-value.value-prominent {
+        font-size: 1.05rem;
+    }
+
+    .ticket-footer-note {
+        margin-top: 0.85rem;
+        padding-top: 0.6rem;
+    }
+
+    .script-thanks {
+        font-size: 1.25rem;
+    }
+
+    /* Reminder Box Spacing */
+    .ticket-reminder-box {
+        width: calc(100% - 32px);
+        max-width: 408px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 0.75rem 0.95rem;
+        gap: 0.75rem;
+        margin-bottom: 1.15rem;
+        border-radius: 14px;
+        box-sizing: border-box;
+    }
+
+    .reminder-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .reminder-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .reminder-title {
+        font-size: 0.86rem;
+        margin-bottom: 0.1rem;
+    }
+
+    .reminder-desc {
+        font-size: 0.78rem;
+    }
+
+    /* Action Buttons */
+    .ticket-action-buttons {
+        width: calc(100% - 32px);
+        max-width: 408px;
+        margin-left: auto;
+        margin-right: auto;
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+        box-sizing: border-box;
+    }
+
+    .ticket-btn {
+        height: 44px;
+        padding: 0.65rem 1rem;
+        font-size: 0.9rem;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+}
+
