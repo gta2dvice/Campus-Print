@@ -1,36 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
-const slots = require('../slots');
+const OrderFile = require('../models/OrderFile');
+const Payment = require('../models/Payment');
+const { upload } = require('../middleware/upload');
+
+// Single-shop deployment today: new orders always go to shop id 1.
+// (Shop selection would be added here if/when multiple shops go live.)
+const DEFAULT_SHOP_ID = 1;
 
 // ── Auth middleware ──────────────────────────────
 function requireAuth(req, res, next) {
     if (req.session && req.session.userId) return next();
     res.status(401).json({ message: 'Not authenticated' });
 }
-
-// GET /api/orders/locations
-router.get('/locations', requireAuth, (req, res) => {
-    res.json({ locations: slots.LOCATIONS });
-});
-
-// GET /api/orders/slots?location=main-gate
-router.get('/slots', requireAuth, async (req, res) => {
-    try {
-        const location = slots.getLocationById(req.query.location) || slots.getLocationByName(req.query.location);
-        if (!location) {
-            return res.status(400).json({ message: 'Invalid collection location.' });
-        }
-        const counts = await Order.getSlotCounts(location.name);
-        res.json({
-            location,
-            slots: slots.buildSlotStatuses(location.id, counts)
-        });
-    } catch (err) {
-        console.error('Slots error:', err);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
 
 // GET /api/orders/stats
 router.get('/stats', requireAuth, async (req, res) => {
@@ -55,27 +38,22 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/orders
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, upload.array('files', 10), async (req, res) => {
     try {
-        const location = slots.getLocationById(req.body.collectionLocationId)
-            || slots.getLocationByName(req.body.collectionLocation);
-        const timeSlot = req.body.collectionTime;
-
-        if (!location || !slots.TIME_SLOTS.includes(timeSlot)) {
-            return res.status(400).json({ message: 'Please select a collection location and time slot.' });
+        const data = {
+            colorOption: req.body.colorOption,
+            paperSize: req.body.paperSize,
+            copies: Number(req.body.copies),
+            spiralBinding: req.body.spiralBinding === 'true' || req.body.spiralBinding === true,
+            expressDelivery: req.body.expressDelivery === 'true' || req.body.expressDelivery === true,
+            totalPrice: Number(req.body.totalPrice),
+            fileCount: req.files ? req.files.length : 0
+        };
+        const order = await Order.createOrder(req.session.userId, DEFAULT_SHOP_ID, data);
+        if (req.files && req.files.length > 0) {
+            await OrderFile.createFiles(order.id, req.files);
         }
-
-        const counts = await Order.getSlotCounts(location.name);
-        const slot = slots.buildSlotStatuses(location.id, counts).find(s => s.time === timeSlot);
-        if (!slot || slot.status === 'full') {
-            return res.status(409).json({ message: 'That time slot is fully booked. Please choose another.' });
-        }
-
-        const order = await Order.createOrder(req.session.userId, {
-            ...req.body,
-            collectionLocation: location.name,
-            collectionTime: timeSlot
-        });
+        await Payment.createForOrder(order.id, req.session.userId, DEFAULT_SHOP_ID, data.totalPrice || 0);
         res.status(201).json(order);
     } catch (err) {
         console.error('Create order error:', err);

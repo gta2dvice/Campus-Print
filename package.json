@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "dev": "nodemon server/server.js",
-    "build": "node scripts/copy-three.js",
+    "dev:client": "cd client-react && npm run dev",
+    "build:client": "cd client-react && npm run build",
     "init-db": "node server/initDb.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,8 +19,8 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "mysql2": "^3.18.2",
-    "three": "^0.185.1"
+    "multer": "^2.3.0",
+    "mysql2": "^3.18.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

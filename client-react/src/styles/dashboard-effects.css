@@ -1,0 +1,23 @@
+.order-steps {
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 transparent;
+}
+.order-steps::-webkit-scrollbar {
+  width: 6px;
+}
+.order-steps::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+.order-steps::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  border-radius: 9999px;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-in {
+  animation: slideIn 0.25s ease;
+}
