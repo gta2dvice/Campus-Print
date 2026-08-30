@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Campus - Skip Queue</title>
+    <meta name="description"
+        content="Print Campus – fast, affordable printing for students right on campus. Upload your files and skip the queue.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Protest+Guerrilla&family=Quantico:ital,wght@0,400;0,700;1,400;1,700&family=Tektur:wght@400..900&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="page-background" id="page-background"></div>
+    <div class="page-content">
+
+    <!-- ── STICKY HERO (stays pinned behind everything) ── -->
+    <div class="hero-container" id="hero">
+
+        <header class="top-nav">
+            <nav>
+                <a href="about.html" class="nav-link">About Us</a>
+                <a href="#location-section" class="nav-link">Location</a>
+            </nav>
+        </header>
+
+        <div class="hero-content" id="heroText">
+            <h1 class="hero-title">CAMPUS PRINTS</h1>
+            <p class="hero-subtitle">Your ideas, printed fast &amp; affordably</p>
+
+            <div class="cta-buttons">
+                <button class="btn btn-primary" id="uploadBtn">
+                    Upload Your Project
+                    <span class="arrow-icon">→</span>
+                </button>
+                <button class="btn btn-secondary" id="seePricingBtn" type="button">
+                    See Services &amp; Pricing
+                </button>
+            </div>
+        </div>
+
+        <!-- Scroll-down arrow -->
+        <div class="scroll-arrow" id="scrollArrow" onclick="scrollToContent()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- ── SLIDING CONTENT — slides over the sticky hero ── -->
+    <main class="reveal-wrapper" id="main-content">
+
+        <!-- ── SECTION 1: Location ── -->
+        <section class="location-section reveal" id="location-section">
+            <div class="location-inner">
+                <div class="location-text">
+                    <span class="location-tag">📍 Find Us</span>
+                    <h2 class="location-title">Your Prints.<br> At Our Campus.</h2>
+                    <p class="location-subtitle">
+                        No need to leave campus for your prints. We handle the printing and deliver your order right to you inside the college.
+                    </p>
+                    <div class="location-details">
+                        <div class="location-detail-item">
+                            <span class="detail-icon">🏛️</span>
+                            <div>
+                                <strong>Delivey Points</strong>
+                                <p>1.Main Gate<br>2.Academic Block<br>3.Hostel Gate</p>
+                            </div>
+                        </div>
+                        <div class="location-detail-item">
+                            <span class="detail-icon">🕐</span>
+                            <div>
+                                <strong>Hours</strong>
+                                <p>Mon –Fri: 9:00 AM – 4:00 PM<br>Sunday & Saturday: Closed(Online Services)</p>
+                            </div>
+                        </div>
+                        <div class="location-detail-item">
+                            <span class="detail-icon">📞</span>
+                            <div>
+                                <strong>Contact</strong>
+                                <p>+91 9457311377<br>printcampus@college.edu</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="location-map-card">
+                    <div class="map-placeholder">
+                        <div class="map-pin-anim">
+                            <div class="map-pin">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b82f6"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 21s-8-7.5-8-12a8 8 0 1 1 16 0c0 4.5-8 12-8 12z" />
+                                    <circle cx="12" cy="9" r="2.5" fill="#3b82f6" stroke="none" />
+                                </svg>
+                            </div>
+                            <div class="pin-pulse"></div>
+                        </div>
+                        <p class="map-label">Print Campus<br><span>Main Academic Block</span></p>
+                        <a href="https://maps.app.goo.gl/CV2jsxgn5Jkpvqkk7" target="_blank" class="btn btn-primary map-btn">
+Open in Maps →
+</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── SECTION 2: Trusted by Students ── -->
+        <section class="trusted-section reveal">
+            <div class="trusted-inner">
+                <h2 class="trusted-title">Trusted by Students</h2>
+                <p class="trusted-subtitle">
+                    Join hundreds of students who rely on Print Campus for fast, reliable prints.
+                </p>
+
+                <div class="trusted-wrapper">
+                    <div class="trusted-orbit" style="--quantity: 6;">
+                        <div class="trusted-card" style="--index: 0; --color-card: 59, 130, 246;">
+                            <div class="trusted-card-bg"></div>
+                            <div class="trusted-card-content">
+                                <h3 class="student-name">Divye</h3>
+                                <p class="student-branch">CSE Core</p>
+                                <p class="student-rating">⭐⭐⭐⭐⭐</p>
+                                <p class="student-review">
+                                    Very fast printing and affordable pricing. Saved my semester submissions!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="trusted-card" style="--index: 1; --color-card: 249, 115, 22;">
+                            <div class="trusted-card-bg"></div>
+                            <div class="trusted-card-content">
+                                <h3 class="student-name">Kartike</h3>
+                                <p class="student-branch">CSE AI-ML</p>
+                                <p class="student-rating">⭐⭐⭐⭐⭐</p>
+                                <p class="student-review">
+                                    Upload system is smooth and no more long queues.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="trusted-card" style="--index: 2; --color-card: 20, 184, 166;">
+                            <div class="trusted-card-bg"></div>
+                            <div class="trusted-card-content">
+                                <h3 class="student-name">Ananya</h3>
+                                <p class="student-branch">ECE</p>
+                                <p class="student-rating">⭐⭐⭐⭐⭐</p>
+                                <p class="student-review">
+                                    Clean prints and very quick service inside campus.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="trusted-card" style="--index: 3; --color-card: 239, 68, 68;">
+                            <div class="trusted-card-bg"></div>
+                            <div class="trusted-card-content">
+                                <h3 class="student-name">Bhargavii</h3>
+                                <p class="student-branch">BCA</p>
+                                <p class="student-rating">⭐⭐⭐⭐⭐</p>
+                                <p class="student-review">
+                                    Very fast printing and affordable pricing. Saved my semester submissions!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="trusted-card" style="--index: 4; --color-card: 139, 92, 246;">
+                            <div class="trusted-card-bg"></div>
+                            <div class="trusted-card-content">
+                                <h3 class="student-name">Kush</h3>
+                                <p class="student-branch">CSE Core</p>
+                                <p class="student-rating">⭐⭐⭐⭐⭐</p>
+                                <p class="student-review">
+                                    Upload system is smooth and no more long queues.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="trusted-card" style="--index: 5; --color-card: 56, 189, 248;">
+                            <div class="trusted-card-bg"></div>
+                            <div class="trusted-card-content">
+                                <h3 class="student-name">Yashavii</h3>
+                                <p class="student-branch">CSE AI-ML</p>
+                                <p class="student-rating">⭐⭐⭐⭐⭐</p>
+                                <p class="student-review">
+                                    Upload system is smooth and no more long queues.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ── SECTION 3: Pricing ── -->
+        <section class="pricing-section reveal" id="pricing-section">
+            <!-- Decorative orbs -->
+            <div class="pricing-orb pricing-orb-1"></div>
+            <div class="pricing-orb pricing-orb-2"></div>
+
+            <div class="pricing-inner">
+                <!-- Header -->
+                <div class="pricing-header">
+                    <span class="pricing-tag">💰 Transparent Pricing</span>
+                    <h2 class="pricing-title">Simple &amp; Affordable</h2>
+                    <p class="pricing-subtitle">
+                        No hidden charges. Slide through the options below and see your estimated cost instantly.
+                    </p>
+                </div>
+
+                <!-- Cards Row -->
+                <div class="pricing-cards-row">
+
+                    <!-- Card 1: Color Mode -->
+                    <div class="pricing-card" id="pcColorCard">
+                        <div class="pc-icon">🖨️</div>
+                        <h3 class="pc-title">Color Mode</h3>
+                        <div class="pc-toggle-group" id="pcColorGroup">
+                            <button class="pc-chip active" data-pc-color="bw" id="pcChipBw">
+                                B&amp;W
+                                <span class="pc-chip-price">₹2 / page</span>
+                            </button>
+                            <button class="pc-chip" data-pc-color="color" id="pcChipColor">
+                                Color
+                                <span class="pc-chip-price">₹5 / page</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Paper Size -->
+                    <div class="pricing-card" id="pcSizeCard">
+                        <div class="pc-icon">📄</div>
+                        <h3 class="pc-title">Paper Size</h3>
+                        <div class="pc-toggle-group" id="pcSizeGroup">
+                            <button class="pc-chip active" data-pc-size="A4" id="pcChipA4">
+                                A4
+                                <span class="pc-chip-price">Standard</span>
+
+                            </button>
+                            <button class="pc-chip" data-pc-size="A3" id="pcChipA3">
+                                A3
+                                <span class="pc-chip-price">+₹10</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Add-ons -->
+                    <div class="pricing-card pc-addon-card" id="pcAddonCard">
+                        <div class="pc-icon">✨</div>
+                        <h3 class="pc-title">Add-ons</h3>
+                        <div class="pc-addons">
+                            <label class="pc-addon-row" id="pcAddonSpiral">
+                                <input type="checkbox" class="pc-addon-check" data-addon="spiral" data-price="20"
+                                    id="pcCheckSpiral">
+                                <span class="pc-addon-box"></span>
+                                <span class="pc-addon-text">Spiral Binding</span>
+                                <span class="pc-addon-badge">+₹20</span>
+                            </label>
+                            <label class="pc-addon-row" id="pcAddonExpress">
+                                <input type="checkbox" class="pc-addon-check" data-addon="express" data-price="15"
+                                    id="pcCheckExpress">
+                                <span class="pc-addon-box"></span>
+                                <span class="pc-addon-text">Express Delivery</span>
+                                <span class="pc-addon-badge">+₹15</span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div><!-- /pricing-cards-row -->
+
+                <!-- Slider Section -->
+                <div class="pricing-slider-wrap">
+                    <div class="slider-label-row">
+                        <span class="slider-label-text">Number of Pages</span>
+                        <span class="slider-value-badge" id="pcPagesDisplay">10 pages</span>
+                    </div>
+                    <div class="slider-track-wrap">
+                        <input type="range" class="pricing-range" id="pcPagesSlider" min="1" max="200" value="10"
+                            step="1" aria-label="Number of pages">
+                        <div class="slider-fill" id="pcSliderFill"></div>
+                    </div>
+                    <div class="slider-ends">
+                        <span>1 page</span>
+                        <span>200 pages</span>
+                    </div>
+                </div>
+
+                <!-- Live Total -->
+                <div class="pricing-total-wrap">
+                    <div class="pricing-total-card">
+                        <div class="ptc-breakdown" id="pcBreakdown">
+                            <span class="ptc-line"><span class="ptc-line-label" id="ptcBaseLabel">10 pages × ₹2
+                                    (B&W)</span><span class="ptc-line-val" id="ptcBaseVal">₹20</span></span>
+                            <span class="ptc-line ptc-line-hidden" id="ptcSizeLine"><span class="ptc-line-label">A3
+                                    Upcharge</span><span class="ptc-line-val" id="ptcSizeVal">₹10</span></span>
+                            <span class="ptc-line ptc-line-hidden" id="ptcSpiralLine"><span
+                                    class="ptc-line-label">Spiral Binding</span><span
+                                    class="ptc-line-val">₹20</span></span>
+                            <span class="ptc-line ptc-line-hidden" id="ptcExpressLine"><span
+                                    class="ptc-line-label">Express Delivery</span><span
+                                    class="ptc-line-val">₹15</span></span>
+                        </div>
+                        <div class="ptc-divider"></div>
+                        <div class="ptc-total-row">
+                            <span class="ptc-total-label">Estimated Total</span>
+                            <span class="ptc-total-amount" id="pcTotalAmount">₹20</span>
+                        </div>
+                        <p class="ptc-note">Final price calculated per page after upload. Copies can be set in the order
+                            form.</p>
+                        <button class="btn btn-primary ptc-order-btn" id="ptcOrderBtn">
+                            Start Your Order <span class="arrow-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ── FOOTER ── -->
+        <footer class="site-footer reveal">
+            <!-- Background watermark -->
+            <div class="footer-watermark">PRINT CAMPUS</div>
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <span class="footer-logo">PRINT CAMPUS</span>
+                    <p class="footer-tagline">Skip the queue. Print smarter.</p>
+                </div>
+                <button class="pc-footer-cta">Print</button>
+
+                <div class="footer-links">
+                    <div class="footer-col">
+                        <h4>Navigate</h4>
+                        <a href="about.html">About Us</a>
+                        <a href="#location-section">Location</a>
+                        <a href="#" id="footerUploadBtn">Upload &amp; Print</a>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Connect</h4>
+                        <a href="https://instagram.com" target="_blank">Instagram</a>
+                        <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+                        <a href="mailto:printcampus@college.edu">Email Us</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal-overlay">
+        <div class="modal-content">
+            <button id="closeModal" class="close-btn">&times;</button>
+            <div class="modal-header">
+                <button class="toggle-btn active" id="showLoginBtn">Login</button>
+                <button class="toggle-btn" id="showSignupBtn">Sign Up</button>
+            </div>
+
+            <form id="authForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required placeholder="Enter your email">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                </div>
+
+                <div class="form-group" id="confirmPasswordGroup" style="display: none;">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword"
+                        placeholder="Confirm your password">
+                </div>
+
+                <div id="authError" class="auth-error"></div>
+
+                <button type="submit" class="btn btn-primary submit-btn" id="authSubmitBtn">Login</button>
+            </form>
+        </div>
+    </div>
+
+    </div>
+    <script src="script.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/three.module.js"
+      }
+    }
+    </script>
+    <script type="module" src="/js/init-background.js"></script>
+</body>
+
+</html>
