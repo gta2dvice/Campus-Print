@@ -36,6 +36,9 @@ router.post('/login', async (req, res) => {
 
         const user = await User.findByEmail(email);
         if (user && (await User.matchPassword(password, user.password))) {
+            if (!user.is_active) {
+                return res.status(403).json({ message: 'Your account has been deactivated. Contact support.' });
+            }
             req.session.userId = user.id;
             req.session.userEmail = user.email;
             res.status(200).json({ id: user.id, email: user.email, message: 'Login successful' });
