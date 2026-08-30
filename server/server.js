@@ -5,6 +5,8 @@ const session = require('express-session');
 
 const authRoutes = require('./routes/auth');
 const orderRoutes = require('./routes/orders');
+const adminRoutes = require('./routes/admin');
+const superAdminRoutes = require('./routes/superAdmin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,41 +23,20 @@ app.use(session({
     cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day
 }));
 
-// Static files
-app.use(express.static(path.join(__dirname, '../client')));
-
 // ── API Routes ───────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/super-admin', superAdminRoutes);
 
-// ── Page Routes ──────────────────────────────────
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/index.html'));
-});
+// ── React SPA (built by client-react) ─────────────
+// Auth/role guards now live client-side in the React app (each page/layout
+// checks session status via the API routes above and redirects as needed).
+const CLIENT_DIST = path.join(__dirname, '../client-dist');
+app.use(express.static(CLIENT_DIST));
 
-app.get('/dashboard', (req, res) => {
-    if (req.session && req.session.userId) {
-        res.sendFile(path.join(__dirname, '../client/dashboard.html'));
-    } else {
-        res.redirect('/');
-    }
-});
-
-app.get('/new-order', (req, res) => {
-    if (req.session && req.session.userId) {
-        res.sendFile(path.join(__dirname, '../client/new-order.html'));
-    } else {
-        res.redirect('/');
-    }
-});
-
-// Keep legacy /upload route pointing to dashboard
-app.get('/upload', (req, res) => {
-    if (req.session && req.session.userId) {
-        res.redirect('/new-order');
-    } else {
-        res.redirect('/');
-    }
+app.get(/^(?!\/api\/).*/, (req, res) => {
+    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
 });
 
 // ── Start Server ─────────────────────────────────
