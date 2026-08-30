@@ -1,13 +1,13 @@
 const pool = require('../db');
 
-async function createForOrder(orderId, userId, shopId, amount) {
-    const ref = `TXN-${String(orderId).padStart(6, '0')}`;
+async function createForOrder(orderId, userId, shopId, amount, method = 'manual', transactionRef = null) {
+    const ref = transactionRef || `TXN-${String(orderId).padStart(6, '0')}`;
     const [result] = await pool.execute(
-        `INSERT INTO payments (order_id, user_id, shop_id, amount, status, transaction_ref)
-         VALUES (?, ?, ?, ?, 'success', ?)`,
-        [orderId, userId, shopId, amount, ref]
+        `INSERT INTO payments (order_id, user_id, shop_id, amount, status, method, transaction_ref)
+         VALUES (?, ?, ?, ?, 'success', ?, ?)`,
+        [orderId, userId, shopId, amount, method, ref]
     );
-    return { id: result.insertId };
+    return { id: result.insertId, transaction_ref: ref };
 }
 
 async function refundForOrder(orderId) {

@@ -1,11 +1,15 @@
 const pool = require('../db');
 
 async function createOrder(userId, shopId, data) {
-    const { colorOption, paperSize, copies, spiralBinding, expressDelivery, totalPrice, fileCount } = data;
+    const {
+        colorOption, paperSize, copies, spiralBinding, expressDelivery, totalPrice, fileCount,
+        collectionLocationId, collectionLocationName, collectionTime, totalPages, printingSide
+    } = data;
     const [result] = await pool.execute(
         `INSERT INTO orders
-            (user_id, shop_id, color_option, paper_size, copies, spiral_binding, express_delivery, total_price, file_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, shop_id, color_option, paper_size, copies, spiral_binding, express_delivery, total_price, file_count,
+             collection_location_id, collection_location, collection_time, total_pages, printing_side)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             userId,
             shopId,
@@ -15,10 +19,27 @@ async function createOrder(userId, shopId, data) {
             spiralBinding ? 1 : 0,
             expressDelivery ? 1 : 0,
             totalPrice || 0,
-            fileCount || 0
+            fileCount || 0,
+            collectionLocationId || null,
+            collectionLocationName || null,
+            collectionTime || null,
+            totalPages || 0,
+            printingSide === 'double' ? 'double' : 'single'
         ]
     );
-    return { id: result.insertId };
+    const ticketNumber = `CP-${String(result.insertId).padStart(3, '0')}`;
+    await pool.execute(`UPDATE orders SET ticket_number = ? WHERE id = ?`, [ticketNumber, result.insertId]);
+    return { id: result.insertId, ticketNumber };
+}
+
+async function getOrderForUser(orderId, userId) {
+    const [rows] = await pool.execute(
+        `SELECT o.*, u.email AS customer_email
+         FROM orders o JOIN users u ON u.id = o.user_id
+         WHERE o.id = ? AND o.user_id = ?`,
+        [orderId, userId]
+    );
+    return rows[0] || null;
 }
 
 async function getOrdersByUser(userId) {
@@ -248,6 +269,7 @@ async function getPlatformStats() {
 
 module.exports = {
     createOrder,
+    getOrderForUser,
     getOrdersByUser,
     getOrderStats,
     VALID_STATUSES,

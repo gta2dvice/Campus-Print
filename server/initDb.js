@@ -190,6 +190,50 @@ async function initDb() {
         if (err.code !== 'ER_DUP_KEYNAME') throw err;
     });
 
+    // Collection/pickup details + generated ticket number for the collection ticket
+    try {
+        await connection.query(`ALTER TABLE orders ADD COLUMN collection_location_id VARCHAR(50) NULL`);
+        console.log('✅ collection_location_id column added to orders');
+    } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+    try {
+        await connection.query(`ALTER TABLE orders ADD COLUMN collection_location VARCHAR(100) NULL`);
+        console.log('✅ collection_location column added to orders');
+    } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+    try {
+        await connection.query(`ALTER TABLE orders ADD COLUMN collection_time VARCHAR(20) NULL`);
+        console.log('✅ collection_time column added to orders');
+    } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+    try {
+        await connection.query(`ALTER TABLE orders ADD COLUMN ticket_number VARCHAR(20) NULL`);
+        console.log('✅ ticket_number column added to orders');
+    } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+    // Backfill ticket numbers for any pre-existing orders that don't have one
+    await connection.query(`
+        UPDATE orders SET ticket_number = CONCAT('CP-', LPAD(id, 3, '0')) WHERE ticket_number IS NULL
+    `);
+
+    // Auto-detected page count + mandatory single/double-sided printing choice
+    try {
+        await connection.query(`ALTER TABLE orders ADD COLUMN total_pages INT NULL`);
+        console.log('✅ total_pages column added to orders');
+    } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+    try {
+        await connection.query(`ALTER TABLE orders ADD COLUMN printing_side ENUM('single','double') NOT NULL DEFAULT 'single'`);
+        console.log('✅ printing_side column added to orders');
+    } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+
     // Payments — minimal record mirroring order value (no live gateway yet)
     await connection.query(`
         CREATE TABLE IF NOT EXISTS payments (

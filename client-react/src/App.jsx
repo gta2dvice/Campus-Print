@@ -3,6 +3,8 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Dashboard from './pages/Dashboard';
 import NewOrder from './pages/NewOrder';
+import SelectLocation from './pages/SelectLocation';
+import Ticket from './pages/Ticket';
 
 import AdminLogin from './pages/admin/Login';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -32,6 +34,8 @@ export default function App() {
       <Route path="/about" element={<About />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/new-order" element={<NewOrder />} />
+      <Route path="/select-location" element={<SelectLocation />} />
+      <Route path="/ticket" element={<Ticket />} />
 
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminLayout />}>

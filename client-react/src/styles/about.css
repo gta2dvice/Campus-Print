@@ -4,28 +4,16 @@
    sky-blue / warm-white / primary-blue
 ───────────────────────────────────────── */
 
-/* ── Page background uses the provided gradient image ── */
+/* Page chrome — background visual is provided by FloatingLines */
 body.about-page {
-    background: url('/assets/about-bg.jpg') center center / cover no-repeat fixed,
-        linear-gradient(135deg, #87ceea 0%, #f8f0e3 60%, #ffffff 100%);
+    background: transparent;
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
 }
 
-/* fallback when image not yet present – matches the uploaded image colours */
-body.about-page::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: linear-gradient(130deg,
-            #87CEEA 0%,
-            #a8d8f0 20%,
-            #c8e8f8 40%,
-            #f5e6c8 65%,
-            #fffaf0 80%,
-            #ffffff 100%);
-    z-index: -1;
+body.about-page .page-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 /* ── Navigation override for this page ── */
@@ -75,7 +63,7 @@ body.about-page::before {
     font-size: clamp(2.4rem, 6vw, 4rem);
     font-weight: 800;
     letter-spacing: -0.03em;
-    color: #111827;
+    color: #fafafa;
     line-height: 1.15;
     margin-bottom: 1.2rem;
 }
@@ -89,7 +77,7 @@ body.about-page::before {
 
 .about-hero__subtitle {
     font-size: 1.1rem;
-    color: #4b5563;
+    color: #eef2f9;
     line-height: 1.7;
     max-width: 520px;
     margin: 0 auto;

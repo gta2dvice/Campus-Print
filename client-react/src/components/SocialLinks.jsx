@@ -18,9 +18,9 @@ const ICONS = {
 
 export default function SocialLinks({ links }) {
   return (
-    <ul className="m-0 flex list-none items-center justify-center overflow-visible p-0">
+    <ul className="example-2 social-links">
       {links.map(({ platform, href, label }) => (
-        <li key={platform} className="icon-content relative mx-2.5 list-none">
+        <li key={platform} className="icon-content">
           <a data-social={platform} aria-label={platform} href={href} target="_blank" rel="noopener noreferrer">
             <div className="filled" />
             {ICONS[platform]}

@@ -45,15 +45,41 @@ function statusFromBooked(booked, capacity = SLOT_CAPACITY) {
     return 'available';
 }
 
-function buildSlotStatuses(locationId, countsByTime = {}) {
+// Campus Print only operates in India, so "now" for slot cutoffs is always IST — regardless of
+// what timezone the server process/host happens to be configured with. Comparing minutes-since-
+// midnight (instead of Date objects built from the OS's local timezone) keeps this correct no
+// matter where the Node process actually runs.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** Minutes since midnight IST, right now. */
+function nowMinutesIST(atMs = Date.now()) {
+    const istMs = atMs + IST_OFFSET_MS;
+    return Math.floor((istMs % 86400000) / 60000);
+}
+
+/** Parses a "9:25 AM" style label into minutes since midnight. */
+function slotMinutes(time) {
+    const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(time.trim());
+    if (!match) return null;
+    let [, hourStr, minStr, meridiem] = match;
+    let hour = parseInt(hourStr, 10) % 12;
+    if (meridiem.toUpperCase() === 'PM') hour += 12;
+    return hour * 60 + parseInt(minStr, 10);
+}
+
+function buildSlotStatuses(locationId, countsByTime = {}, atMs = Date.now()) {
+    const nowMinutes = nowMinutesIST(atMs);
     return TIME_SLOTS.map(time => {
         const seed = SEED_BOOKED[slotKey(locationId, time)] || 0;
         const live = countsByTime[time] || 0;
         const booked = Math.min(SLOT_CAPACITY, seed + live);
-        const status = statusFromBooked(booked);
+        const mins = slotMinutes(time);
+        const isPast = mins !== null && mins <= nowMinutes;
+        const status = isPast ? 'past' : statusFromBooked(booked);
         return {
             time,
             status,
+            isPast,
             booked,
             capacity: SLOT_CAPACITY,
             remaining: Math.max(0, SLOT_CAPACITY - booked)
@@ -67,5 +93,7 @@ module.exports = {
     SLOT_CAPACITY,
     getLocationById,
     getLocationByName,
+    nowMinutesIST,
+    slotMinutes,
     buildSlotStatuses
 };
