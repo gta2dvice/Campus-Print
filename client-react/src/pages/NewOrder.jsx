@@ -143,8 +143,13 @@ export default function NewOrder() {
     const formData = new FormData();
     newlyAdded.forEach((entry) => formData.append('files', entry.file));
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
     try {
-      const res = await fetch('/api/orders/detect-pages', { method: 'POST', credentials: 'include', body: formData });
+      const res = await fetch('/api/orders/detect-pages', {
+        method: 'POST', credentials: 'include', body: formData, signal: controller.signal
+      });
       if (!res.ok) throw new Error('detect-pages failed');
       const data = await res.json();
       const results = data.files || [];
@@ -160,6 +165,8 @@ export default function NewOrder() {
         newlyAdded.some((n) => n.key === entry.key) ? { ...entry, pages: 1, estimated: true } : entry
       ));
       showToast('Could not auto-detect page count for one or more files — using an estimate.', 'error');
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

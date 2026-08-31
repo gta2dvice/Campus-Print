@@ -1,15 +1,32 @@
 const { PDFParse } = require('pdf-parse');
 const JSZip = require('jszip');
 
+// pdfjs's getDocument() promise never settles for some files (most notably
+// password-protected PDFs, which wait forever on an unanswered password
+// callback) — without a hard cap, one bad upload hangs the whole request.
+const DETECT_TIMEOUT_MS = 15000;
+
+function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Page detection timed out')), ms);
+        promise.then(
+            (val) => { clearTimeout(timer); resolve(val); },
+            (err) => { clearTimeout(timer); reject(err); }
+        );
+    });
+}
+
 async function detectPdfPages(buffer) {
     const parser = new PDFParse({ data: buffer });
     try {
-        const info = await parser.getInfo();
+        const info = await withTimeout(parser.getInfo(), DETECT_TIMEOUT_MS);
         const total = Number(info.total);
         if (!total || total < 1) return { pages: 1, estimated: true };
         return { pages: total, estimated: false };
     } finally {
-        await parser.destroy();
+        // Best-effort cleanup — if getInfo() never settled, destroy() may hang too,
+        // so don't let it block the response.
+        parser.destroy().catch(() => {});
     }
 }
 
