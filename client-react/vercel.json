@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+      {
+        "source": "/api/(.*)",
+        "destination": "https://campus-print-1yeh.onrender.com/api/$1"
+      }
+    ]
+}

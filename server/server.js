@@ -32,7 +32,8 @@ app.use('/api/super-admin', superAdminRoutes);
 // ── React SPA (built by client-react) — public site + admin + super-admin ────
 // Auth/role guards live client-side in the React app (each page/layout
 // checks session status via the API routes above and redirects as needed).
-const CLIENT_DIST = path.join(__dirname, '../client-dist');
+const CLIENT_DIST = path.join(__dirname, '../client-react/dist');
+console.log('Serving static files from:', CLIENT_DIST);
 app.use(express.static(CLIENT_DIST));
 
 app.get(/^(?!\/api\/).*/, (req, res) => {
