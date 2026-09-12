@@ -126,18 +126,20 @@ export default function NewOrder() {
 
   function addFiles(newFiles) {
     const accepted = [];
-    setFiles((prev) => {
-      const next = [...prev];
-      newFiles.forEach((file) => {
-        if (next.length >= 10) { showToast('Max 10 files allowed.', 'error'); return; }
-        if (!ALLOWED_TYPES.includes(file.type)) { showToast(`${file.name}: unsupported type.`, 'error'); return; }
-        const entry = { key: ++fileKeySeq, file, pages: null, estimated: false };
-        next.push(entry);
-        accepted.push(entry);
-      });
-      return next;
+    newFiles.forEach((file) => {
+      if (files.length + accepted.length >= 10) {
+        showToast('Max 10 files allowed.', 'error');
+        return;
+      }
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        showToast(`${file.name}: unsupported type.`, 'error');
+        return;
+      }
+      accepted.push({ key: ++fileKeySeq, file, pages: null, estimated: false });
     });
-    if (accepted.length > 0) detectPagesFor(accepted);
+    if (accepted.length === 0) return;
+    setFiles((prev) => [...prev, ...accepted]);
+    detectPagesFor(accepted);
   }
 
   async function detectPagesFor(newlyAdded) {
@@ -153,13 +155,16 @@ export default function NewOrder() {
       });
       if (!res.ok) throw new Error('detect-pages failed');
       const data = await res.json();
-      const results = data.files || [];
+      const results = data.files;
+      const resultsComplete = Array.isArray(results)
+        && results.length === newlyAdded.length
+        && results.every((result) => result && typeof result.pages === 'number' && result.pages >= 1);
+      if (!resultsComplete) throw new Error('incomplete detect-pages results');
       setFiles((prev) => prev.map((entry) => {
         const idx = newlyAdded.findIndex((n) => n.key === entry.key);
         if (idx === -1) return entry;
         const result = results[idx];
-        if (!result) return entry;
-        return { ...entry, pages: result.pages, estimated: result.estimated };
+        return { ...entry, pages: result.pages, estimated: !!result.estimated };
       }));
     } catch {
       setFiles((prev) => prev.map((entry) =>
