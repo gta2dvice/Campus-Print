@@ -1,5 +1,6 @@
-require('dotenv').config();
+require('./loadEnv');
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
 
@@ -7,20 +8,63 @@ const authRoutes = require('./routes/auth');
 const orderRoutes = require('./routes/orders');
 const adminRoutes = require('./routes/admin');
 const superAdminRoutes = require('./routes/superAdmin');
+const internalRoutes = require('./routes/internal');
+const { cleanupExpiredPdfs } = require('./jobs/cleanupExpiredPdfs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ───────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// CORS configuration
+const allowedOrigins = [
+    'http://localhost:5173',
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+
+function isCashfreeWebhook(req) {
+    return req.originalUrl.split('?')[0] === '/api/orders/payment/webhook';
+}
+
+app.use('/api/orders/payment/webhook', express.raw({ type: 'application/json' }), (req, res, next) => {
+    req.rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '');
+    try {
+        req.body = JSON.parse(req.rawBody || '{}');
+    } catch {
+        req.body = {};
+    }
+    next();
+});
+
+app.use((req, res, next) => {
+    if (isCashfreeWebhook(req)) return next();
+    express.json()(req, res, next);
+});
+app.use((req, res, next) => {
+    if (isCashfreeWebhook(req)) return next();
+    express.urlencoded({ extended: true })(req, res, next);
+});
 
 // Session
 app.use(session({
     secret: process.env.SESSION_SECRET || 'campus-print-secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
 }));
 
 // ── API Routes ───────────────────────────────────
@@ -28,6 +72,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/internal', internalRoutes);
 
 // ── React SPA (built by client-react) — public site + admin + super-admin ────
 // Auth/role guards live client-side in the React app (each page/layout
@@ -43,4 +88,11 @@ app.get(/^(?!\/api\/).*/, (req, res) => {
 // ── Start Server ─────────────────────────────────
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    const hour = 60 * 60 * 1000;
+    setInterval(() => {
+        cleanupExpiredPdfs()
+            .then(result => console.log('PDF cleanup:', result))
+            .catch(err => console.error('PDF cleanup error:', err.message));
+    }, hour);
+    cleanupExpiredPdfs().catch(err => console.error('Initial PDF cleanup error:', err.message));
 });

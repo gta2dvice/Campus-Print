@@ -265,9 +265,7 @@ export default function NewOrder() {
     return formData;
   }
 
-  // TEMP: while Razorpay isn't configured (no RAZORPAY_KEY_ID/SECRET in .env), the server's
-  // /payment/create responds 503 and we fall back to /payment/simulate — same order/ticket
-  // creation, just skipping the real gateway — so the order + ticket flow can be tried end to end.
+  // If Cashfree is not configured, /payment/create returns 503 and we fall back to /payment/simulate.
   async function runSimulatedPayment() {
     try {
       const res = await fetch('/api/orders/payment/simulate', { method: 'POST', credentials: 'include', body: buildOrderFormData() });
@@ -283,6 +281,20 @@ export default function NewOrder() {
       showToast('Connection error. Please try again.', 'error');
       setPaying(false);
     }
+  }
+
+  async function confirmPaidOrder(cashfreeOrderId) {
+    const formData = buildOrderFormData();
+    formData.append('cashfree_order_id', cashfreeOrderId);
+    const verifyRes = await fetch('/api/orders/payment/verify', { method: 'POST', credentials: 'include', body: formData });
+    const verifyData = await verifyRes.json();
+    if (verifyRes.ok) {
+      closeBookingModal();
+      navigate(`/ticket?id=${verifyData.id}`);
+      return;
+    }
+    showToast(verifyData.message || 'Payment could not be confirmed. If money was deducted, contact support.', 'error');
+    setPaying(false);
   }
 
   async function handlePay() {
@@ -315,52 +327,26 @@ export default function NewOrder() {
         return;
       }
 
-      if (typeof window.Razorpay === 'undefined') {
+      const started = Date.now();
+      while (typeof window.Cashfree !== 'function' && Date.now() - started < 8000) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      if (typeof window.Cashfree !== 'function') {
         showToast('Payment gateway failed to load. Check your connection and retry.', 'error');
         setPaying(false);
         return;
       }
 
-      const rzp = new window.Razorpay({
-        key: createData.keyId,
-        amount: createData.amount,
-        currency: createData.currency,
-        order_id: createData.razorpayOrderId,
-        name: 'Campus Print',
-        description: 'Print order payment',
-        prefill: { email: currentUser?.email || '' },
-        theme: { color: '#3b82f6' },
-        handler: async (response) => {
-          const formData = buildOrderFormData();
-          formData.append('razorpay_order_id', response.razorpay_order_id);
-          formData.append('razorpay_payment_id', response.razorpay_payment_id);
-          formData.append('razorpay_signature', response.razorpay_signature);
-
-          try {
-            const verifyRes = await fetch('/api/orders/payment/verify', { method: 'POST', credentials: 'include', body: formData });
-            const verifyData = await verifyRes.json();
-            if (verifyRes.ok) {
-              closeBookingModal();
-              navigate(`/ticket?id=${verifyData.id}`);
-            } else {
-              showToast(verifyData.message || 'Payment succeeded but order creation failed. Contact support.', 'error');
-              setPaying(false);
-            }
-          } catch {
-            showToast('Connection error while confirming your order. Contact support with your payment ID.', 'error');
-            setPaying(false);
-          }
-        },
-        modal: { ondismiss: () => setPaying(false) },
+      const cashfreeCheckout = window.Cashfree({
+        mode: createData.mode === 'production' ? 'production' : 'sandbox',
       });
 
-      rzp.on('payment.failed', () => {
-        showToast('Payment failed. Please try again.', 'error');
-        setPaying(false);
+      await cashfreeCheckout.checkout({
+        paymentSessionId: createData.paymentSessionId,
+        redirectTarget: '_modal',
       });
 
-      setPaying(false);
-      rzp.open();
+      await confirmPaidOrder(createData.cashfreeOrderId);
     } catch {
       showToast('Connection error. Please try again.', 'error');
       setPaying(false);
@@ -368,10 +354,10 @@ export default function NewOrder() {
   }
 
   useEffect(() => {
-    if (document.getElementById('razorpay-checkout-js')) return;
+    if (document.getElementById('cashfree-checkout-js')) return;
     const script = document.createElement('script');
-    script.id = 'razorpay-checkout-js';
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.id = 'cashfree-checkout-js';
+    script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
     document.body.appendChild(script);
   }, []);
 

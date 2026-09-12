@@ -31,7 +31,7 @@ export default function PaymentGateway() {
             <div>
               <div className="font-bold text-gray-900">{gateway.provider}</div>
               <div className="mt-[0.15rem] text-[0.82rem] text-gray-600">
-                {gateway.status === 'connected' ? `Connected · ${gateway.mode === 'live' ? 'Live mode' : 'Test mode'}` : 'Not connected'}
+                {gateway.status === 'connected' ? `Connected · ${gateway.mode === 'production' ? 'Live mode' : 'Test mode'}` : 'Not connected'}
               </div>
             </div>
           </div>
@@ -42,7 +42,7 @@ export default function PaymentGateway() {
           <p className="mt-4 text-[0.8rem] text-gray-400">
             {gateway.status === 'connected'
               ? 'Gateway credentials are configured on the server and never exposed to the browser.'
-              : 'No live payment gateway is configured yet. Orders are recorded with their amount, but no real payment collection happens through Razorpay at this time.'}
+              : 'No live payment gateway is configured yet. Orders can still be recorded via the sandbox simulate path until Cashfree keys are set on the server.'}
           </p>
         </>
       )}

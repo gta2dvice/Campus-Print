@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const OrderFile = require('../models/OrderFile');
 const Shop = require('../models/Shop');
 const Payment = require('../models/Payment');
 const { requireSuperAdmin } = require('../middleware/roleAuth');
+const { sendStoredFile } = require('../sendStoredFile');
 
 // ── Auth ──────────────────────────────────────────
 
@@ -195,12 +194,7 @@ router.get('/orders/:orderId/documents/:fileId', requireSuperAdmin, async (req, 
         if (!file || String(file.order_id) !== String(req.params.orderId)) {
             return res.status(404).json({ message: 'File not found' });
         }
-        const filePath = path.join(__dirname, '../uploads', file.stored_name);
-        if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'File not found on server' });
-
-        res.setHeader('Content-Type', file.mime_type);
-        res.setHeader('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename="${encodeURIComponent(file.original_name)}"`);
-        res.sendFile(filePath);
+        await sendStoredFile(res, file, { download: !!req.query.download });
     } catch (err) {
         console.error('Super admin document access error:', err);
         res.status(500).json({ message: 'Server Error' });
@@ -230,16 +224,17 @@ router.get('/transactions', requireSuperAdmin, async (req, res) => {
     }
 });
 
-// Read-only gateway status — no live Razorpay integration exists yet.
+// Read-only gateway status — secrets stay on the server.
 // Kept as a clean abstraction: secrets are never sent to the frontend,
 // and this reflects real configuration state rather than fabricated data.
 router.get('/payment-gateway', requireSuperAdmin, async (req, res) => {
-    const configured = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+    const cashfree = require('../cashfree');
+    const configured = cashfree.isConfigured();
     res.json({
-        provider: 'Razorpay',
+        provider: 'Cashfree',
         configured,
-        mode: configured ? (process.env.RAZORPAY_KEY_ID.startsWith('rzp_live') ? 'live' : 'test') : null,
-        webhookConfigured: !!process.env.RAZORPAY_WEBHOOK_SECRET,
+        mode: configured ? cashfree.getMode() : null,
+        webhookConfigured: !!process.env.PUBLIC_API_URL,
         status: configured ? 'connected' : 'not_connected'
     });
 });

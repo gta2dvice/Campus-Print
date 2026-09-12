@@ -5,17 +5,23 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
+    "start": "node server/server.js",
     "dev": "nodemon server/server.js",
     "dev:client": "cd client-react && npm run dev",
     "build:client": "cd client-react && npm run build",
     "init-db": "node server/initDb.js",
+    "migrate-mysql": "node scripts/migrate-mysql-to-supabase.js",
+    "cleanup-pdfs": "node -e \"require('./server/loadEnv'); require('./server/jobs/cleanupExpiredPdfs').cleanupExpiredPdfs().then(r => { console.log(r); process.exit(0); }).catch(e => { console.error(e); process.exit(1); })\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.114.0",
     "bcryptjs": "^3.0.3",
+    "cashfree-pg": "^6.0.5",
+    "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
@@ -23,7 +29,7 @@
     "multer": "^2.3.0",
     "mysql2": "^3.18.2",
     "pdf-parse": "^2.4.5",
-    "razorpay": "^2.9.8"
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
