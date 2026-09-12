@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Profile = require('../models/Profile');
+
+// @route  POST /api/auth/signup
 
 // @route  POST /api/auth/signup
 router.post('/signup', async (req, res) => {
@@ -54,13 +57,75 @@ router.post('/login', async (req, res) => {
 // @route  GET /api/auth/status
 router.get('/status', async (req, res) => {
     if (req.session && req.session.userId) {
-        res.status(200).json({
-            isLoggedIn: true,
-            userId: req.session.userId,
-            email: req.session.userEmail || ''
-        });
+        try {
+            const profileComplete = await Profile.checkProfileExists(req.session.userId);
+            res.status(200).json({
+                isLoggedIn: true,
+                userId: req.session.userId,
+                email: req.session.userEmail || '',
+                profileComplete
+            });
+        } catch (error) {
+            console.error('Status error:', error);
+            res.status(500).json({ message: 'Server Error' });
+        }
     } else {
         res.status(200).json({ isLoggedIn: false });
+    }
+});
+
+// @route  GET /api/auth/profile
+router.get('/profile', async (req, res) => {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ message: 'Not authenticated' });
+    }
+    try {
+        const profile = await Profile.getProfileByUserId(req.session.userId);
+        if (!profile) return res.status(404).json({ message: 'Profile not found' });
+        res.json(profile);
+    } catch (error) {
+        console.error('Get profile error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route  POST /api/auth/profile
+router.post('/profile', async (req, res) => {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ message: 'Not authenticated' });
+    }
+    try {
+        const { full_name, phone_number, class_room_number } = req.body;
+        if (!full_name || !phone_number || !class_room_number) {
+            return res.status(400).json({ message: 'Please provide full name, phone number, and class/room number' });
+        }
+
+        const profile = await Profile.createProfile(req.session.userId, { full_name, phone_number, class_room_number });
+        res.status(201).json(profile);
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(400).json({ message: 'Profile already exists' });
+        }
+        console.error('Create profile error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route  PUT /api/auth/profile
+router.put('/profile', async (req, res) => {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ message: 'Not authenticated' });
+    }
+    try {
+        const { full_name, phone_number, class_room_number } = req.body;
+        if (!full_name || !phone_number || !class_room_number) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+        const profile = await Profile.updateProfile(req.session.userId, { full_name, phone_number, class_room_number });
+        res.json(profile);
+    } catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 

@@ -5,6 +5,9 @@ import Dashboard from './pages/Dashboard';
 import NewOrder from './pages/NewOrder';
 import SelectLocation from './pages/SelectLocation';
 import Ticket from './pages/Ticket';
+import CompleteProfile from './pages/CompleteProfile';
+import EditProfile from './pages/EditProfile';
+import OrderDetails from './pages/OrderDetails';
 
 import AdminLogin from './pages/admin/Login';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -33,6 +36,9 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/about" element={<About />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/complete-profile" element={<CompleteProfile />} />
+      <Route path="/edit-profile" element={<EditProfile />} />
+      <Route path="/order/:id" element={<OrderDetails />} />
       <Route path="/new-order" element={<NewOrder />} />
       <Route path="/select-location" element={<SelectLocation />} />
       <Route path="/ticket" element={<Ticket />} />

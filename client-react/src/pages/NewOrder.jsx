@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardSidebar from '../components/DashboardSidebar';
+import Footer from '../components/Footer';
 import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
@@ -727,6 +728,7 @@ export default function NewOrder() {
         </div>
       </div>
 
+      <Footer />
       <Toast toast={toast} />
     </>
   );

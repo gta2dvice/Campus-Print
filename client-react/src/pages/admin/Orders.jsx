@@ -231,6 +231,14 @@ export default function Orders() {
                 <>
                   <div className="grid grid-cols-2 gap-[0.9rem]">
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Customer</span><span className="text-gray-900">{modalOrder.customer_email}</span></div>
+                    <div className="col-span-2 p-3 rounded-lg bg-blue-50 border border-blue-100">
+                      <span className="mb-1 block text-[0.72rem] uppercase tracking-wide text-blue-400 font-bold">Student Details</span>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
+                        <div><strong className="text-gray-400">Name:</strong> {modalOrder.full_name || 'N/A'}</div>
+                        <div><strong className="text-gray-400">Phone:</strong> {modalOrder.phone_number || 'N/A'}</div>
+                        <div><strong className="text-gray-400">Room:</strong> {modalOrder.class_room_number || 'N/A'}</div>
+                      </div>
+                    </div>
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Status</span><StatusBadge status={modalOrder.status} /></div>
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Color</span><span className="text-gray-900">{modalOrder.color_option === 'bw' ? 'Black & White' : 'Color'}</span></div>
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Paper Size</span><span className="text-gray-900">{modalOrder.paper_size}</span></div>

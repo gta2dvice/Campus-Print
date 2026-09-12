@@ -1,17 +1,23 @@
 const pool = require('../db');
+const Profile = require('./Profile');
 
 async function createOrder(userId, shopId, data) {
     const {
         colorOption, paperSize, copies, spiralBinding, expressDelivery, totalPrice, fileCount,
         collectionLocationId, collectionLocationName, collectionTime, totalPages, printingSide
     } = data;
+
+    const profile = await Profile.getProfileByUserId(userId);
+    const studentId = profile ? profile.id : null;
+
     const [result] = await pool.execute(
         `INSERT INTO orders
-            (user_id, shop_id, color_option, paper_size, copies, spiral_binding, express_delivery, total_price, file_count,
+            (user_id, student_id, shop_id, color_option, paper_size, copies, spiral_binding, express_delivery, total_price, file_count,
              collection_location_id, collection_location, collection_time, total_pages, printing_side)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             userId,
+            studentId,
             shopId,
             colorOption || 'bw',
             paperSize || 'A4',
@@ -34,8 +40,10 @@ async function createOrder(userId, shopId, data) {
 
 async function getOrderForUser(orderId, userId) {
     const [rows] = await pool.execute(
-        `SELECT o.*, u.email AS customer_email
-         FROM orders o JOIN users u ON u.id = o.user_id
+        `SELECT o.*, u.email AS customer_email, p.full_name, p.phone_number, p.class_room_number
+         FROM orders o
+         JOIN users u ON u.id = o.user_id
+         LEFT JOIN student_profiles p ON p.id = o.student_id
          WHERE o.id = ? AND o.user_id = ?`,
         [orderId, userId]
     );
@@ -44,7 +52,10 @@ async function getOrderForUser(orderId, userId) {
 
 async function getOrdersByUser(userId) {
     const [rows] = await pool.execute(
-        'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+        `SELECT o.*, p.full_name, p.phone_number, p.class_room_number
+         FROM orders o
+         LEFT JOIN student_profiles p ON p.id = o.student_id
+         WHERE o.user_id = ? ORDER BY o.created_at DESC LIMIT 50`,
         [userId]
     );
     return rows;
@@ -90,8 +101,8 @@ async function listOrders({ search = '', status = '', shopId = null, dateFrom = 
         params.push(shopId);
     }
     if (search) {
-        where.push('(o.id = ? OR u.email LIKE ?)');
-        params.push(Number(search) || 0, `%${search}%`);
+        where.push('(o.id = ? OR u.email LIKE ? OR p.full_name LIKE ?)');
+        params.push(Number(search) || 0, `%${search}%`, `%${search}%`);
     }
     if (status) {
         where.push('o.status = ?');
@@ -112,8 +123,10 @@ async function listOrders({ search = '', status = '', shopId = null, dateFrom = 
     const sortDir = dir === 'ASC' ? 'ASC' : 'DESC';
 
     const [rows] = await pool.query(
-        `SELECT o.*, u.email AS customer_email, s.shop_name
-         FROM orders o JOIN users u ON u.id = o.user_id LEFT JOIN shops s ON s.id = o.shop_id
+        `SELECT o.*, u.email AS customer_email, s.shop_name, p.full_name, p.phone_number, p.class_room_number
+         FROM orders o JOIN users u ON u.id = o.user_id
+         LEFT JOIN shops s ON s.id = o.shop_id
+         LEFT JOIN student_profiles p ON p.id = o.student_id
          ${whereClause}
          ORDER BY ${sortCol} ${sortDir}
          LIMIT ? OFFSET ?`,
@@ -131,8 +144,10 @@ async function getOrderById(orderId, shopId = null) {
     let shopFilter = '';
     if (shopId) { shopFilter = 'AND o.shop_id = ?'; params.push(shopId); }
     const [rows] = await pool.execute(
-        `SELECT o.*, u.email AS customer_email, s.shop_name
-         FROM orders o JOIN users u ON u.id = o.user_id LEFT JOIN shops s ON s.id = o.shop_id
+        `SELECT o.*, u.email AS customer_email, s.shop_name, p.full_name, p.phone_number, p.class_room_number
+         FROM orders o JOIN users u ON u.id = o.user_id
+         LEFT JOIN shops s ON s.id = o.shop_id
+         LEFT JOIN student_profiles p ON p.id = o.student_id
          WHERE o.id = ? ${shopFilter}`,
         params
     );
