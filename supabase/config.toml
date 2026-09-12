@@ -1,0 +1,5 @@
+# https://supabase.com/docs/guides/functions/schedule-functions
+project_id = "YOUR_PROJECT_REF"
+
+[functions.cleanup-expired-pdfs]
+verify_jwt = false

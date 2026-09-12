@@ -1,5 +1,7 @@
 export async function apiFetch(path, options = {}) {
-    const res = await fetch(path, { credentials: 'include', ...options });
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const fullPath = path.startsWith('http') ? path : `${baseUrl}${path}`;
+    const res = await fetch(fullPath, { credentials: 'include', ...options });
     return res;
 }
 

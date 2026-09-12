@@ -68,7 +68,8 @@ async function setActive(id, isActive) {
 
 async function getPlatformShopStats() {
     const [[row]] = await pool.query(
-        `SELECT COUNT(*) AS total, SUM(is_active) AS active, SUM(approval_status = 'pending') AS pending FROM shops`
+        `SELECT COUNT(*) AS total, SUM(is_active) AS active,
+                SUM(CASE WHEN approval_status = 'pending' THEN 1 ELSE 0 END) AS pending FROM shops`
     );
     return {
         total: parseInt(row.total, 10),

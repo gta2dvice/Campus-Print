@@ -1,13 +1,39 @@
 const pool = require('../db');
 
-async function createForOrder(orderId, userId, shopId, amount, method = 'manual', transactionRef = null) {
+async function createForOrder(orderId, userId, shopId, amount, method = 'manual', transactionRef = null, extra = {}) {
     const ref = transactionRef || `TXN-${String(orderId).padStart(6, '0')}`;
+    const status = extra.status || 'success';
+    const gatewayOrderId = extra.gatewayOrderId || null;
     const [result] = await pool.execute(
-        `INSERT INTO payments (order_id, user_id, shop_id, amount, status, method, transaction_ref)
-         VALUES (?, ?, ?, ?, 'success', ?, ?)`,
-        [orderId, userId, shopId, amount, method, ref]
+        `INSERT INTO payments (order_id, user_id, shop_id, amount, status, method, transaction_ref, gateway_order_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [orderId, userId, shopId, amount, status, method, ref, gatewayOrderId]
     );
     return { id: result.insertId, transaction_ref: ref };
+}
+
+async function findByGatewayOrderId(gatewayOrderId) {
+    if (!gatewayOrderId) return null;
+    const [rows] = await pool.execute(
+        `SELECT * FROM payments WHERE gateway_order_id = ? ORDER BY id DESC LIMIT 1`,
+        [gatewayOrderId]
+    );
+    return rows[0] || null;
+}
+
+async function updateByGatewayOrderId(gatewayOrderId, { status, transactionRef } = {}) {
+    const fields = [];
+    const params = [];
+    if (status) { fields.push('status = ?'); params.push(status); }
+    if (transactionRef) { fields.push('transaction_ref = ?'); params.push(transactionRef); }
+    if (fields.length === 0) return findByGatewayOrderId(gatewayOrderId);
+    fields.push('updated_at = NOW()');
+    params.push(gatewayOrderId);
+    await pool.execute(
+        `UPDATE payments SET ${fields.join(', ')} WHERE gateway_order_id = ?`,
+        params
+    );
+    return findByGatewayOrderId(gatewayOrderId);
 }
 
 async function refundForOrder(orderId) {
@@ -62,4 +88,4 @@ async function getPlatformPaymentStats() {
     return result;
 }
 
-module.exports = { createForOrder, refundForOrder, listPayments, getPlatformPaymentStats };
+module.exports = { createForOrder, refundForOrder, listPayments, getPlatformPaymentStats, findByGatewayOrderId, updateByGatewayOrderId };

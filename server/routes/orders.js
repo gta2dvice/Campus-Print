@@ -1,5 +1,4 @@
 const express = require('express');
-const crypto = require('crypto');
 const multer = require('multer');
 const router = express.Router();
 const Order = require('../models/Order');
@@ -9,6 +8,8 @@ const { upload } = require('../middleware/upload');
 const { detectPages } = require('../pageDetect');
 const slots = require('../slots');
 const pool = require('../db');
+const { uploadBuffer, buildObjectPath } = require('../storage');
+const cashfree = require('../cashfree');
 
 // In-memory upload just for page-count detection — nothing here touches disk.
 const detectUpload = multer({
@@ -16,13 +17,8 @@ const detectUpload = multer({
     limits: { fileSize: 20 * 1024 * 1024, files: 10 }
 });
 
-let razorpay = null;
-if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-    const Razorpay = require('razorpay');
-    razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET
-    });
+function paymentGatewayReady() {
+    return cashfree.isConfigured();
 }
 
 // Single-shop deployment today: new orders always go to shop id 1.
@@ -117,6 +113,26 @@ router.get('/', requireAuth, async (req, res) => {
     }
 });
 
+async function persistUploadedFiles(userId, orderId, files) {
+    const stored = [];
+    for (const file of files) {
+        const { storedName, storagePath } = buildObjectPath(userId, orderId, file.originalname);
+        await uploadBuffer({
+            storagePath,
+            buffer: file.buffer,
+            contentType: file.mimetype
+        });
+        stored.push({
+            originalname: file.originalname,
+            storedName,
+            storagePath,
+            mimetype: file.mimetype,
+            size: file.size
+        });
+    }
+    await OrderFile.createFiles(orderId, stored);
+}
+
 function readOrderPayload(body) {
     return {
         colorOption: body.colorOption,
@@ -133,30 +149,50 @@ function readOrderPayload(body) {
     };
 }
 
-// POST /api/orders/payment/create — creates a Razorpay order for the checkout total.
+// POST /api/orders/payment/create — creates a Cashfree order and returns a payment session.
 router.post('/payment/create', requireAuth, async (req, res) => {
-    if (!razorpay) return res.status(503).json({ message: 'Payment gateway is not configured. Set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in .env.' });
+    if (!paymentGatewayReady()) {
+        return res.status(503).json({ message: 'Payment gateway is not configured. Set CASHFREE_APP_ID / CASHFREE_SECRET_KEY in .env.' });
+    }
     try {
         const amount = Number(req.body.totalPrice);
         if (!amount || amount <= 0) return res.status(400).json({ message: 'Invalid order amount' });
 
-        const razorpayOrder = await razorpay.orders.create({
-            amount: Math.round(amount * 100), // paise
-            currency: 'INR',
-            receipt: `rcpt_${Date.now()}`
+        const User = require('../models/User');
+        const user = await User.findById(req.session.userId);
+        const cashfreeOrderId = `cp_${req.session.userId}_${Date.now()}`;
+        const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+        const publicApi = (process.env.PUBLIC_API_URL || '').replace(/\/$/, '');
+        const notifyUrl = publicApi ? `${publicApi}/api/orders/payment/webhook` : undefined;
+
+        const session = await cashfree.createPaymentSession({
+            orderId: cashfreeOrderId,
+            amount,
+            customerId: `user_${req.session.userId}`,
+            customerEmail: user?.email || req.session.userEmail,
+            customerPhone: req.body.customerPhone,
+            returnUrl: `${frontend}/new-order?cf_order={order_id}`,
+            notifyUrl
         });
-        res.json({ razorpayOrderId: razorpayOrder.id, amount: razorpayOrder.amount, currency: razorpayOrder.currency, keyId: process.env.RAZORPAY_KEY_ID });
+
+        if (!session.paymentSessionId) {
+            return res.status(500).json({ message: 'Could not start payment' });
+        }
+
+        res.json({
+            paymentSessionId: session.paymentSessionId,
+            cashfreeOrderId: session.cashfreeOrderId,
+            mode: cashfree.getMode()
+        });
     } catch (err) {
-        console.error('Razorpay order create error:', err);
-        res.status(500).json({ message: 'Could not initiate payment' });
+        console.error('Cashfree order create error:', err.response?.data || err.message);
+        res.status(500).json({ message: err.response?.data?.message || 'Could not initiate payment' });
     }
 });
 
-// POST /api/orders/payment/simulate — TEMP stand-in for real Razorpay checkout so the order +
-// ticket flow can be exercised before RAZORPAY_KEY_ID/SECRET are configured. Only active while
-// razorpay isn't configured; once real keys are set this route refuses and /payment/verify takes over.
+// POST /api/orders/payment/simulate — TEMP stand-in when Cashfree keys are not configured.
 router.post('/payment/simulate', requireAuth, upload.array('files', 10), async (req, res) => {
-    if (razorpay) return res.status(400).json({ message: 'Payment gateway is configured — use the real checkout.' });
+    if (paymentGatewayReady()) return res.status(400).json({ message: 'Payment gateway is configured — use the real checkout.' });
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: 'Please upload at least one file to continue.' });
@@ -169,7 +205,7 @@ router.post('/payment/simulate', requireAuth, upload.array('files', 10), async (
         data.fileCount = req.files.length;
 
         const order = await Order.createOrder(req.session.userId, DEFAULT_SHOP_ID, data);
-        await OrderFile.createFiles(order.id, req.files);
+        await persistUploadedFiles(req.session.userId, order.id, req.files);
         const simulatedRef = `TXN-SIM-${Date.now()}`;
         await Payment.createForOrder(order.id, req.session.userId, DEFAULT_SHOP_ID, data.totalPrice || 0, 'simulated', simulatedRef);
 
@@ -180,13 +216,17 @@ router.post('/payment/simulate', requireAuth, upload.array('files', 10), async (
     }
 });
 
-// POST /api/orders/payment/verify — verifies the Razorpay signature, then creates the order.
+// POST /api/orders/payment/verify — confirms Cashfree order status, then creates the print order.
 router.post('/payment/verify', requireAuth, upload.array('files', 10), async (req, res) => {
-    if (!razorpay) return res.status(503).json({ message: 'Payment gateway is not configured.' });
+    if (!paymentGatewayReady()) return res.status(503).json({ message: 'Payment gateway is not configured.' });
+    let cashfreeOrderId;
     try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-            return res.status(400).json({ message: 'Missing payment verification fields' });
+        cashfreeOrderId = req.body.cashfree_order_id || req.body.cashfreeOrderId;
+        if (!cashfreeOrderId) {
+            return res.status(400).json({ message: 'Missing payment order id' });
+        }
+        if (!String(cashfreeOrderId).startsWith(`cp_${req.session.userId}_`)) {
+            return res.status(403).json({ message: 'Invalid payment order' });
         }
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: 'Please upload at least one file to continue.' });
@@ -195,25 +235,104 @@ router.post('/payment/verify', requireAuth, upload.array('files', 10), async (re
             return res.status(400).json({ message: 'Please choose single-sided or double-sided printing.' });
         }
 
-        const expectedSignature = crypto
-            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-            .digest('hex');
-        if (expectedSignature !== razorpay_signature) {
-            return res.status(400).json({ message: 'Payment verification failed' });
+        const cfOrder = await cashfree.fetchOrderUntilPaid(cashfreeOrderId);
+        if (!cashfree.isOrderPaid(cfOrder)) {
+            return res.status(400).json({ message: 'Payment is not completed yet. Please wait or try again.' });
+        }
+
+        const existing = await Payment.findByGatewayOrderId(cashfreeOrderId);
+        if (existing && existing.order_id) {
+            const prior = await Order.getOrderForUser(existing.order_id, req.session.userId);
+            if (prior) {
+                return res.status(200).json({ id: prior.id, ticketNumber: prior.ticket_number });
+            }
+            return res.status(409).json({ message: 'This payment is already linked to an order.' });
         }
 
         const data = readOrderPayload(req.body);
         data.fileCount = req.files.length;
+        if (!cashfree.amountsMatch(cfOrder.order_amount, data.totalPrice)) {
+            return res.status(400).json({ message: 'Payment amount does not match this order.' });
+        }
 
         const order = await Order.createOrder(req.session.userId, DEFAULT_SHOP_ID, data);
-        await OrderFile.createFiles(order.id, req.files);
-        await Payment.createForOrder(order.id, req.session.userId, DEFAULT_SHOP_ID, data.totalPrice || 0, 'razorpay', razorpay_payment_id);
+        await persistUploadedFiles(req.session.userId, order.id, req.files);
+        const paymentId = cfOrder.cf_payment_id || cfOrder.order_id || cashfreeOrderId;
+        await Payment.createForOrder(
+            order.id,
+            req.session.userId,
+            DEFAULT_SHOP_ID,
+            Number(cfOrder.order_amount) || data.totalPrice || 0,
+            'cashfree',
+            String(paymentId),
+            { status: 'success', gatewayOrderId: cashfreeOrderId }
+        );
 
         res.status(201).json({ id: order.id, ticketNumber: order.ticketNumber });
     } catch (err) {
-        console.error('Payment verify error:', err);
+        if (err.code === '23505' && cashfreeOrderId) {
+            const existing = await Payment.findByGatewayOrderId(cashfreeOrderId);
+            if (existing?.order_id) {
+                const prior = await Order.getOrderForUser(existing.order_id, req.session.userId);
+                if (prior) return res.status(200).json({ id: prior.id, ticketNumber: prior.ticket_number });
+            }
+        }
+        console.error('Payment verify error:', err.response?.data || err.message);
         res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// POST /api/orders/payment/webhook — Cashfree server-to-server payment events.
+router.post('/payment/webhook', async (req, res) => {
+    try {
+        if (!paymentGatewayReady()) return res.status(503).json({ message: 'Payment gateway is not configured.' });
+
+        const signature = req.headers['x-webhook-signature'];
+        const timestamp = req.headers['x-webhook-timestamp'];
+        const rawBody = req.rawBody;
+        if (!signature || !timestamp || typeof rawBody !== 'string') {
+            return res.status(400).json({ message: 'Missing webhook signature' });
+        }
+
+        const tsNum = Number(timestamp);
+        if (Number.isFinite(tsNum)) {
+            const ageMs = Math.abs(Date.now() - (String(timestamp).length <= 10 ? tsNum * 1000 : tsNum));
+            if (ageMs > 15 * 60 * 1000) {
+                return res.status(400).json({ message: 'Stale webhook' });
+            }
+        }
+
+        cashfree.verifyWebhookSignature(signature, rawBody, timestamp);
+
+        const eventType = req.body?.type || req.body?.event || '';
+        const orderId = req.body?.data?.order?.order_id;
+        const paymentStatus = String(req.body?.data?.payment?.payment_status || '').toUpperCase();
+        const cfPaymentId = req.body?.data?.payment?.cf_payment_id;
+
+        if (!orderId) return res.status(200).json({ ok: true });
+
+        let status = null;
+        try {
+            const cfOrder = await cashfree.fetchOrder(orderId);
+            if (cashfree.isOrderPaid(cfOrder)) status = 'success';
+            else if (eventType.includes('FAILED') || eventType.includes('USER_DROPPED') || paymentStatus === 'FAILED' || paymentStatus === 'USER_DROPPED') {
+                status = 'failed';
+            }
+        } catch (fetchErr) {
+            console.error('Cashfree webhook fetch error:', fetchErr.response?.data || fetchErr.message);
+        }
+
+        if (status) {
+            await Payment.updateByGatewayOrderId(orderId, {
+                status,
+                transactionRef: cfPaymentId ? String(cfPaymentId) : undefined
+            });
+        }
+
+        res.status(200).json({ ok: true });
+    } catch (err) {
+        console.error('Cashfree webhook error:', err.message);
+        res.status(400).json({ message: 'Invalid webhook' });
     }
 });
 

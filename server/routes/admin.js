@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const OrderFile = require('../models/OrderFile');
 const Shop = require('../models/Shop');
 const Payment = require('../models/Payment');
 const { requireShopAdmin } = require('../middleware/roleAuth');
+const { sendStoredFile } = require('../sendStoredFile');
 
 // ── Auth ──────────────────────────────────────────
 
@@ -144,12 +143,7 @@ router.get('/orders/:orderId/documents/:fileId', requireShopAdmin, async (req, r
         if (!file || String(file.order_id) !== String(req.params.orderId)) {
             return res.status(404).json({ message: 'File not found' });
         }
-        const filePath = path.join(__dirname, '../uploads', file.stored_name);
-        if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'File not found on server' });
-
-        res.setHeader('Content-Type', file.mime_type);
-        res.setHeader('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename="${encodeURIComponent(file.original_name)}"`);
-        res.sendFile(filePath);
+        await sendStoredFile(res, file, { download: !!req.query.download });
     } catch (err) {
         console.error('Admin document access error:', err);
         res.status(500).json({ message: 'Server Error' });
