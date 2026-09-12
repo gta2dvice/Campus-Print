@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 
 // ── Middleware ───────────────────────────────────
 // CORS configuration
-const allowedOrigins = [
+const allowedOrigins = ['http://localhost:3000',
     'http://localhost:5173',
     process.env.FRONTEND_URL
 ].filter(Boolean);

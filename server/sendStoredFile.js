@@ -1,4 +1,4 @@
-const { downloadFile } = require('../storage');
+const { downloadFile } = require('./storage');
 
 async function sendStoredFile(res, file, { download = false } = {}) {
     if (!file) return res.status(404).json({ message: 'File not found' });

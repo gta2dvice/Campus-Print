@@ -91,6 +91,9 @@ router.get('/:id', requireAuth, async (req, res) => {
 router.post('/detect-pages', requireAuth, detectUpload.array('files', 10), async (req, res) => {
     try {
         const files = req.files || [];
+        if (files.length === 0) {
+            return res.status(400).json({ message: 'No files uploaded for page detection.' });
+        }
         const results = await Promise.all(files.map(async (f) => {
             const { pages, estimated } = await detectPages(f);
             return { name: f.originalname, pages, estimated };
