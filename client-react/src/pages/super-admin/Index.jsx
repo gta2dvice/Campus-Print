@@ -1,21 +1,32 @@
 import { useEffect, useState } from 'react';
 import Icon from './Icon';
-import { saApi, fmtMoney, StatusBadge, Loading, EmptyState, ErrorState, TrendChart } from './shared';
+import { saApi, fmtMoney, fmtPickup, LIVE_REFRESH_MS, StatusBadge, Loading, EmptyState, ErrorState, TrendChart } from './shared';
 
 export default function Index() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    let loadedOnce = false;
+
+    async function load() {
       try {
         const res = await saApi('/api/super-admin/dashboard');
         if (!res.ok) throw new Error('Failed to load dashboard');
-        setData(await res.json());
+        const next = await res.json();
+        if (cancelled) return;
+        setData(next);
+        setError('');
+        loadedOnce = true;
       } catch (err) {
-        setError(err.message);
+        if (!cancelled && !loadedOnce) setError(err.message);
       }
-    })();
+    }
+
+    load();
+    const timer = setInterval(load, LIVE_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(timer); };
   }, []);
 
   const dateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -67,7 +78,7 @@ export default function Index() {
                   <table className="w-full border-collapse text-[0.85rem]">
                     <thead>
                       <tr>
-                        {['Order ID', 'Student', 'Shop', 'Amount', 'Status'].map((h) => (
+                        {['Order ID', 'Student', 'Shop', 'Pickup', 'Amount', 'Status'].map((h) => (
                           <th key={h} className="whitespace-nowrap border-b border-gray-200 px-3 py-[0.6rem] text-left text-[0.72rem] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
                         ))}
                       </tr>
@@ -78,6 +89,7 @@ export default function Index() {
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">#{String(o.id).padStart(4, '0')}</td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.customer_email}</td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.shop_name || '—'}</td>
+                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtPickup(o)}</td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] font-semibold text-gray-900">{fmtMoney(o.total_price)}</td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]"><StatusBadge status={o.status} /></td>
                         </tr>

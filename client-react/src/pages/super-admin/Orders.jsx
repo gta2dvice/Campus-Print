@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  saApi, fmtMoney, fmtDate, StatusBadge,
+  saApi, fmtMoney, fmtDate, fmtPickup, LIVE_REFRESH_MS, StatusBadge,
   Loading, EmptyState, ErrorState, Pagination, Modal, DetailGrid, DetailItem,
 } from './shared';
 
@@ -19,22 +19,29 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [openOrderId, setOpenOrderId] = useState(null);
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const loadOrders = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const params = new URLSearchParams({ ...applied, page, limit: 15 });
       const res = await saApi(`/api/super-admin/orders?${params}`);
       if (!res.ok) throw new Error('Failed to load orders');
       setData(await res.json());
+      setError('');
     } catch (err) {
-      setError(err.message);
+      if (!silent) setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [applied, page]);
 
-  useEffect(() => { loadOrders(); }, [loadOrders]);
+  useEffect(() => {
+    loadOrders();
+    const timer = setInterval(() => loadOrders(true), LIVE_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [loadOrders]);
 
   function applyFilters() {
     setPage(1);
@@ -92,7 +99,7 @@ export default function Orders() {
             <table className="w-full border-collapse text-[0.85rem]">
               <thead>
                 <tr>
-                  {['Order ID', 'Student', 'Shop', 'Details', 'Status', 'Amount', 'Date', ''].map((h) => (
+                  {['Order ID', 'Student', 'Shop', 'Pickup', 'Details', 'Status', 'Amount', 'Date', ''].map((h) => (
                     <th key={h} className="whitespace-nowrap border-b border-gray-200 px-3 py-[0.6rem] text-left text-[0.72rem] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
                   ))}
                 </tr>
@@ -103,6 +110,7 @@ export default function Orders() {
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">#{String(o.id).padStart(4, '0')}</td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.customer_email}</td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.shop_name || '—'}</td>
+                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtPickup(o)}</td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.color_option === 'bw' ? 'B&W' : 'Color'} · {o.paper_size} · {o.copies}x</td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]"><StatusBadge status={o.status} /></td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] font-semibold text-gray-900">{fmtMoney(o.total_price)}</td>
@@ -159,6 +167,10 @@ function OrderModal({ orderId, onClose }) {
             <DetailItem label="Paper Size">{order.paper_size}</DetailItem>
             <DetailItem label="Copies">{order.copies}</DetailItem>
             <DetailItem label="Amount"><strong>{fmtMoney(order.total_price)}</strong></DetailItem>
+            <DetailItem label="Collection Location">{order.collection_location || '—'}</DetailItem>
+            <DetailItem label="Collection Time">{order.collection_time || '—'}</DetailItem>
+            <DetailItem label="Ticket">{order.ticket_number || '—'}</DetailItem>
+            <DetailItem label="Printing Side">{order.printing_side === 'double' ? 'Double-Sided' : 'Single-Sided'}</DetailItem>
             <DetailItem label="Placed On">{fmtDate(order.created_at)}</DetailItem>
             {order.rejection_reason && <DetailItem label="Rejection Reason">{order.rejection_reason}</DetailItem>}
           </DetailGrid>

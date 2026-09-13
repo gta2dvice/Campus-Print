@@ -17,6 +17,15 @@ export function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+export function fmtPickup(order) {
+  const loc = order?.collection_location || '';
+  const time = order?.collection_time || '';
+  if (loc && time) return `${loc} · ${time}`;
+  return loc || time || '—';
+}
+
+export const LIVE_REFRESH_MS = 12000;
+
 // Fetch wrapper matching the original common.js `api()` helper: always sends
 // credentials, JSON headers, and redirects to the super-admin login on 401.
 export async function saApi(path, options = {}) {

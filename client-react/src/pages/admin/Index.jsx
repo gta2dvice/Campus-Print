@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import StatusBadge from '../../components/admin/StatusBadge';
-import { adminApi, fmtMoney } from '../../lib/adminHelpers';
+import { adminApi, fmtMoney, fmtPickup, LIVE_REFRESH_MS } from '../../lib/adminHelpers';
 
 const STAT_ICONS = {
   doc: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></>,
@@ -57,6 +57,7 @@ export default function Index() {
 
   useEffect(() => {
     let cancelled = false;
+    let loadedOnce = false;
 
     async function load() {
       try {
@@ -75,13 +76,16 @@ export default function Index() {
         if (cancelled) return;
         setData(dashData);
         setEarnings(earnData);
+        setError('');
+        loadedOnce = true;
       } catch (err) {
-        if (!cancelled) setError(err.message || 'Failed to load dashboard');
+        if (!cancelled && !loadedOnce) setError(err.message || 'Failed to load dashboard');
       }
     }
 
     load();
-    return () => { cancelled = true; };
+    const timer = setInterval(load, LIVE_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(timer); };
   }, []);
 
   const dateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -135,7 +139,7 @@ export default function Index() {
                   <table className="w-full border-collapse text-[0.85rem]">
                     <thead>
                       <tr>
-                        {['Order ID', 'Customer', 'Details', 'Status', 'Amount'].map((h) => (
+                        {['Order ID', 'Customer', 'Pickup', 'Details', 'Status', 'Amount'].map((h) => (
                           <th key={h} className="whitespace-nowrap border-b border-gray-200 px-3 py-2.5 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
                         ))}
                       </tr>
@@ -145,6 +149,7 @@ export default function Index() {
                         <tr key={o.id} className="transition hover:bg-blue-500/[0.03]">
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">#{String(o.id).padStart(4, '0')}</td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.customer_email}</td>
+                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtPickup(o)}</td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.color_option === 'bw' ? 'B&W' : 'Color'} · {o.paper_size} · {o.copies}x</td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]"><StatusBadge status={o.status} /></td>
                           <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] font-bold text-gray-900">{fmtMoney(o.total_price)}</td>

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import Toast from '../../components/Toast';
 import StatusBadge from '../../components/admin/StatusBadge';
 import Pagination from '../../components/admin/Pagination';
-import { adminApi, fmtMoney, fmtDate, STATUS_LABELS, NEXT_ACTIONS } from '../../lib/adminHelpers';
+import { adminApi, fmtMoney, fmtDate, fmtPickup, LIVE_REFRESH_MS, STATUS_LABELS, NEXT_ACTIONS } from '../../lib/adminHelpers';
 
 const STATUS_OPTIONS = ['pending', 'accepted', 'printing', 'ready', 'completed', 'rejected', 'cancelled'];
 
@@ -44,9 +44,11 @@ export default function Orders() {
   const [rejectOrderId, setRejectOrderId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  async function loadOrders() {
-    setLoading(true);
-    setError('');
+  async function loadOrders(silent = false) {
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const params = new URLSearchParams({
         search: appliedFilters.search,
@@ -60,16 +62,21 @@ export default function Orders() {
       if (!res.ok) throw new Error('Failed to load orders');
       const json = await res.json();
       setData(json);
+      setError('');
     } catch (err) {
-      setError(err.message || 'Failed to load orders');
-      setData(null);
+      if (!silent) {
+        setError(err.message || 'Failed to load orders');
+        setData(null);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     loadOrders();
+    const timer = setInterval(() => loadOrders(true), LIVE_REFRESH_MS);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedFilters, page]);
 
@@ -175,7 +182,7 @@ export default function Orders() {
             <table className="w-full border-collapse text-[0.85rem]">
               <thead>
                 <tr>
-                  {['Order ID', 'Customer', 'Details', 'Status', 'Amount', 'Date', 'Actions'].map((h) => (
+                  {['Order ID', 'Customer', 'Pickup', 'Details', 'Status', 'Amount', 'Date', 'Actions'].map((h) => (
                     <th key={h} className="whitespace-nowrap border-b border-gray-200 px-3 py-2.5 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
                   ))}
                 </tr>
@@ -185,6 +192,7 @@ export default function Orders() {
                   <tr key={o.id} className="transition hover:bg-blue-500/[0.03]">
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">#{String(o.id).padStart(4, '0')}</td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.customer_email}</td>
+                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtPickup(o)}</td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.color_option === 'bw' ? 'B&W' : 'Color'} · {o.paper_size} · {o.copies}x</td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]"><StatusBadge status={o.status} /></td>
                     <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] font-bold text-gray-900">{fmtMoney(o.total_price)}</td>
@@ -238,6 +246,10 @@ export default function Orders() {
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Spiral Binding</span><span className="text-gray-900">{modalOrder.spiral_binding ? 'Yes' : 'No'}</span></div>
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Express Delivery</span><span className="text-gray-900">{modalOrder.express_delivery ? 'Yes' : 'No'}</span></div>
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Amount</span><span className="font-bold text-gray-900">{fmtMoney(modalOrder.total_price)}</span></div>
+                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Collection Location</span><span className="text-gray-900">{modalOrder.collection_location || '—'}</span></div>
+                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Collection Time</span><span className="text-gray-900">{modalOrder.collection_time || '—'}</span></div>
+                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Ticket</span><span className="text-gray-900">{modalOrder.ticket_number || '—'}</span></div>
+                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Printing Side</span><span className="text-gray-900">{modalOrder.printing_side === 'double' ? 'Double-Sided' : 'Single-Sided'}</span></div>
                     <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Placed On</span><span className="text-gray-900">{fmtDate(modalOrder.created_at)}</span></div>
                     {modalOrder.rejection_reason && (
                       <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Rejection Reason</span><span className="text-gray-900">{modalOrder.rejection_reason}</span></div>

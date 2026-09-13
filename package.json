@@ -6,8 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "nodemon server/server.js",
-    "dev:client": "cd client-react && npm run dev",
+    "dev": "node scripts/dev.js",
     "build:client": "cd client-react && npm run build",
     "init-db": "node server/initDb.js",
     "migrate-mysql": "node scripts/migrate-mysql-to-supabase.js",

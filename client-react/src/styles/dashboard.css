@@ -1467,6 +1467,42 @@
     background: #ffffff;
 }
 
+.cp-loc-card:disabled,
+.cp-loc-card.is-unavailable {
+    cursor: not-allowed;
+    opacity: 0.55;
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    box-shadow: none;
+    transform: none;
+}
+
+.cp-loc-card:disabled:hover,
+.cp-loc-card.is-unavailable:hover {
+    transform: none;
+    border-color: #e5e7eb;
+    box-shadow: none;
+    background: #f3f4f6;
+}
+
+.cp-loc-status-tag {
+    margin-top: 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.22rem 0.7rem;
+    border-radius: 9999px;
+    background: rgba(16, 185, 129, 0.14);
+    color: #047857;
+}
+
+.cp-loc-card.is-unavailable .cp-loc-status-tag,
+.cp-loc-card:disabled .cp-loc-status-tag {
+    background: rgba(156, 163, 175, 0.2);
+    color: #6b7280;
+}
+
 .cp-loc-card.is-selected {
     border-color: #3b82f6;
     background: linear-gradient(155deg, #ffffff 0%, #eff6ff 100%);

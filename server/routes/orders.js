@@ -31,27 +31,60 @@ function requireAuth(req, res, next) {
     res.status(401).json({ message: 'Not authenticated' });
 }
 
-// GET /api/orders/slots?location=main-gate
+// GET /api/orders/slots
+//   (no query)           → all time slots with 5-minute cutoff
+//   ?time=2:05 PM        → locations offered / unavailable for that slot
+//   ?location=main-gate  → times for one location (legacy)
 router.get('/slots', async (req, res) => {
     try {
+        const time = req.query.time;
         const locationId = req.query.location;
-        const location = slots.getLocationById(locationId);
-        if (!location) return res.status(400).json({ message: 'Unknown location' });
 
-        // Live counts: today's non-cancelled/rejected orders already booked into each slot.
-        const [rows] = await pool.query(
-            `SELECT collection_time, COUNT(*) AS count
-             FROM orders
-             WHERE collection_location_id = ?
-               AND DATE(created_at) = CURDATE()
-               AND status NOT IN ('rejected','cancelled')
-             GROUP BY collection_time`,
-            [locationId]
-        );
-        const countsByTime = {};
-        rows.forEach(r => { countsByTime[r.collection_time] = r.count; });
+        if (time) {
+            if (!slots.TIME_SLOTS.includes(time)) {
+                return res.status(400).json({ message: 'Unknown time slot' });
+            }
+            let countsByLocation = {};
+            if (slots.LIVE_SLOT_AVAILABILITY) {
+                const [rows] = await pool.query(
+                    `SELECT collection_location_id, COUNT(*) AS count
+                     FROM orders
+                     WHERE collection_time = ?
+                       AND DATE(created_at) = CURDATE()
+                       AND status NOT IN ('rejected','cancelled')
+                     GROUP BY collection_location_id`,
+                    [time]
+                );
+                rows.forEach(r => { countsByLocation[r.collection_location_id] = r.count; });
+            }
+            return res.json({
+                time,
+                locations: slots.buildLocationStatusesForTime(time, countsByLocation)
+            });
+        }
 
-        res.json({ location, slots: slots.buildSlotStatuses(locationId, countsByTime) });
+        if (locationId) {
+            const location = slots.getLocationById(locationId);
+            if (!location) return res.status(400).json({ message: 'Unknown location' });
+
+            let countsByTime = {};
+            if (slots.LIVE_SLOT_AVAILABILITY) {
+                const [rows] = await pool.query(
+                    `SELECT collection_time, COUNT(*) AS count
+                     FROM orders
+                     WHERE collection_location_id = ?
+                       AND DATE(created_at) = CURDATE()
+                       AND status NOT IN ('rejected','cancelled')
+                     GROUP BY collection_time`,
+                    [locationId]
+                );
+                rows.forEach(r => { countsByTime[r.collection_time] = r.count; });
+            }
+
+            return res.json({ location, slots: slots.buildSlotStatuses(locationId, countsByTime) });
+        }
+
+        res.json({ slots: slots.buildTimeSlotStatuses() });
     } catch (err) {
         console.error('Slots error:', err);
         res.status(500).json({ message: 'Server Error' });
@@ -164,7 +197,7 @@ router.post('/payment/create', requireAuth, async (req, res) => {
         const User = require('../models/User');
         const user = await User.findById(req.session.userId);
         const cashfreeOrderId = `cp_${req.session.userId}_${Date.now()}`;
-        const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+        const frontend = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
         const publicApi = (process.env.PUBLIC_API_URL || '').replace(/\/$/, '');
         const notifyUrl = publicApi ? `${publicApi}/api/orders/payment/webhook` : undefined;
 
@@ -205,6 +238,8 @@ router.post('/payment/simulate', requireAuth, upload.array('files', 10), async (
         }
 
         const data = readOrderPayload(req.body);
+        const pickupErr = slots.pickupError(data.collectionLocationId, data.collectionTime);
+        if (pickupErr) return res.status(400).json({ message: pickupErr });
         data.fileCount = req.files.length;
 
         const order = await Order.createOrder(req.session.userId, DEFAULT_SHOP_ID, data);
@@ -254,6 +289,8 @@ router.post('/payment/verify', requireAuth, upload.array('files', 10), async (re
 
         const data = readOrderPayload(req.body);
         data.fileCount = req.files.length;
+        const pickupErr = slots.pickupError(data.collectionLocationId, data.collectionTime);
+        if (pickupErr) return res.status(400).json({ message: pickupErr });
         if (!cashfree.amountsMatch(cfOrder.order_amount, data.totalPrice)) {
             return res.status(400).json({ message: 'Payment amount does not match this order.' });
         }
