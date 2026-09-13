@@ -10,6 +10,7 @@ const slots = require('../slots');
 const pool = require('../db');
 const { uploadBuffer, buildObjectPath } = require('../storage');
 const cashfree = require('../cashfree');
+const { requireProfile } = require('../middleware/roleAuth');
 
 // In-memory upload just for page-count detection — nothing here touches disk.
 const detectUpload = multer({
@@ -92,7 +93,7 @@ router.get('/slots', async (req, res) => {
 });
 
 // GET /api/orders/stats
-router.get('/stats', requireAuth, async (req, res) => {
+router.get('/stats', requireProfile, async (req, res) => {
     try {
         const stats = await Order.getOrderStats(req.session.userId);
         res.json(stats);
@@ -103,7 +104,7 @@ router.get('/stats', requireAuth, async (req, res) => {
 });
 
 // GET /api/orders/:id — single order, owner-only (used by the collection ticket page)
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireProfile, async (req, res) => {
     try {
         const order = await Order.getOrderForUser(req.params.id, req.session.userId);
         if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -121,7 +122,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 // POST /api/orders/detect-pages — auto-detects page count per uploaded file (PDF/DOCX get a
 // real count; images are always 1; anything else falls back to a flagged 1-page estimate).
-router.post('/detect-pages', requireAuth, detectUpload.array('files', 10), async (req, res) => {
+router.post('/detect-pages', requireProfile, detectUpload.array('files', 10), async (req, res) => {
     try {
         const files = req.files || [];
         if (files.length === 0) {
@@ -139,7 +140,7 @@ router.post('/detect-pages', requireAuth, detectUpload.array('files', 10), async
 });
 
 // GET /api/orders
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireProfile, async (req, res) => {
     try {
         const orders = await Order.getOrdersByUser(req.session.userId);
         res.json(orders);
@@ -186,7 +187,7 @@ function readOrderPayload(body) {
 }
 
 // POST /api/orders/payment/create — creates a Cashfree order and returns a payment session.
-router.post('/payment/create', requireAuth, async (req, res) => {
+router.post('/payment/create', requireProfile, async (req, res) => {
     if (!paymentGatewayReady()) {
         return res.status(503).json({ message: 'Payment gateway is not configured. Set CASHFREE_APP_ID / CASHFREE_SECRET_KEY in .env.' });
     }
@@ -227,7 +228,7 @@ router.post('/payment/create', requireAuth, async (req, res) => {
 });
 
 // POST /api/orders/payment/simulate — TEMP stand-in when Cashfree keys are not configured.
-router.post('/payment/simulate', requireAuth, upload.array('files', 10), async (req, res) => {
+router.post('/payment/simulate', requireProfile, upload.array('files', 10), async (req, res) => {
     if (paymentGatewayReady()) return res.status(400).json({ message: 'Payment gateway is configured — use the real checkout.' });
     try {
         if (!req.files || req.files.length === 0) {
@@ -255,7 +256,7 @@ router.post('/payment/simulate', requireAuth, upload.array('files', 10), async (
 });
 
 // POST /api/orders/payment/verify — confirms Cashfree order status, then creates the print order.
-router.post('/payment/verify', requireAuth, upload.array('files', 10), async (req, res) => {
+router.post('/payment/verify', requireProfile, upload.array('files', 10), async (req, res) => {
     if (!paymentGatewayReady()) return res.status(503).json({ message: 'Payment gateway is not configured.' });
     let cashfreeOrderId;
     try {

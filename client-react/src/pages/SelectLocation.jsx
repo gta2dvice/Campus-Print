@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import PageBackground from '../components/PageBackground';
+import Footer from '../components/Footer';
 import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
@@ -327,6 +328,7 @@ export default function SelectLocation() {
         </div>
       </main>
 
+      <Footer />
       <Toast toast={toast} />
     </div>
   );

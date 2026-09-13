@@ -198,7 +198,7 @@ export default function Home() {
                     <span className="detail-icon">🏛️</span>
                     <div>
                       <strong>Delivey Points</strong>
-                      <p>1.Main Gate<br />2.Red Canteen<br />3.Hostel Gate</p>
+                      <p>1.Main Gate<br />2.Academic Block<br />3.Hostel Gate</p>
                     </div>
                   </div>
                   <div className="location-detail-item">

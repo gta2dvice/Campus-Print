@@ -119,5 +119,16 @@ DROP POLICY IF EXISTS deny_anon_orders ON orders;
 DROP POLICY IF EXISTS deny_anon_order_files ON order_files;
 DROP POLICY IF EXISTS deny_anon_payments ON payments;
 
--- No direct client access. The Node server uses DATABASE_URL (bypasses RLS as postgres)
--- or the service role. Anon/authenticated JWT users have no table policies on purpose.
+CREATE TABLE IF NOT EXISTS student_profiles (
+    id              SERIAL PRIMARY KEY,
+    user_id         INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    full_name       VARCHAR(255) NOT NULL,
+    phone_number    VARCHAR(30) NOT NULL,
+    class_room_number VARCHAR(50) NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_profiles_user_id ON student_profiles (user_id);
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS student_id INTEGER REFERENCES student_profiles(id) ON DELETE SET NULL;
