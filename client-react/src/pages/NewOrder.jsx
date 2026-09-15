@@ -9,14 +9,10 @@ import useDocumentTitle from '../lib/useDocumentTitle';
 import '../styles/style.css';
 import '../styles/dashboard.css';
 
-const PRICE = { bw: 2, color: 5, a3Extra: 10, spiral: 20, express: 15 };
 const ALLOWED_TYPES = [
   'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
-  'image/png',
-  'image/jpeg',
 ];
+<<<<<<< HEAD
 const LOCATIONS = [
   { id: 'main-gate', name: 'Main Gate', sub: 'Campus Gate 1 pickup', icon: <path d="M3 21V3h18v18M3 12h18M12 3v18" /> },
   { id: 'red-canteen', name: 'Red Canteen', sub: 'Red Canteen pickup', icon: <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" /> },
@@ -36,6 +32,8 @@ const OFFERED_BY_TIME = {
 const TIME_SLOTS = ['9:25 AM', '11:15 AM', '1:15 PM', '2:05 PM', '4:00 PM'];
 const SLOT_CUTOFF_MINUTES = 5;
 const LIVE_SLOT_AVAILABILITY = false;
+=======
+>>>>>>> 32df33e (upload sys)
 
 // Campus Print only operates in India, so slot cutoffs always use IST — regardless of the
 // student's device timezone. Comparing minutes-since-midnight avoids local-Date pitfalls.
@@ -78,13 +76,13 @@ export default function NewOrder() {
   const [currentUser, setCurrentUser] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState(null);
 
   // ── Order configuration state ──
-  const [files, setFiles] = useState([]); // [{ key, file, pages, estimated }]
+  const [files, setFiles] = useState([]); // [{ key, file, pages, estimated, copies }]
   const [colorOption, setColorOption] = useState('bw');
   const [paperSize, setPaperSize] = useState('A4');
-  const [printingSide, setPrintingSide] = useState(null); // 'single' | 'double' — mandatory
-  const [copies, setCopies] = useState(1);
+  const [printingSide, setPrintingSide] = useState('single'); // 'single' | 'double' — mandatory
   const [spiralBinding, setSpiralBinding] = useState(false);
   const [expressDelivery, setExpressDelivery] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -112,6 +110,9 @@ export default function NewOrder() {
         setCurrentUser(data);
         const name = (data.email || '').split('@')[0];
         setDisplayName(name.charAt(0).toUpperCase() + name.slice(1));
+
+        const configRes = await fetch('/api/orders/config', { credentials: 'include' });
+        if (configRes.ok) setConfig(await configRes.json());
       } catch {
         navigate('/');
         return;
@@ -149,7 +150,7 @@ export default function NewOrder() {
         showToast(`${file.name}: unsupported type.`, 'error');
         return;
       }
-      accepted.push({ key: ++fileKeySeq, file, pages: null, estimated: false });
+      accepted.push({ key: ++fileKeySeq, file, pages: null, estimated: false, copies: 1 });
     });
     if (accepted.length === 0) return;
     setFiles((prev) => [...prev, ...accepted]);
@@ -194,17 +195,26 @@ export default function NewOrder() {
     setFiles((prev) => prev.filter((f) => f.key !== key));
   }
 
-  const totalPagesCount = files.reduce((sum, f) => sum + (f.pages || 1), 0);
+  function updateFileCopies(key, delta) {
+    setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, copies: Math.max(1, f.copies + delta) } : f)));
+  }
+
+  function clearAllFiles() {
+    setFiles([]);
+  }
+
+  const totalPagesCount = files.reduce((sum, f) => sum + ((f.pages || 1) * f.copies), 0);
   const pagesStillDetecting = files.some((f) => f.pages === null);
 
   function calcPrice() {
+    if (!config) return { pages: 0, base: 0, a3Extra: 0, serviceCharge: 0, deliveryCharge: 0, total: 0 };
     const pages = totalPagesCount;
-    const basePerPage = PRICE[colorOption];
-    const base = pages * basePerPage * copies;
-    const a3Extra = paperSize === 'A3' ? pages * copies * PRICE.a3Extra : 0;
-    const spiral = spiralBinding ? PRICE.spiral : 0;
-    const express = expressDelivery ? PRICE.express : 0;
-    return { pages, base, a3Extra, spiral, express, total: base + a3Extra + spiral + express };
+    const basePerPage = config.pricing[colorOption];
+    const base = pages * basePerPage;
+    const a3Extra = paperSize === 'A3' ? pages * config.pricing.a3Extra : 0;
+    const serviceCharge = config.pricing.serviceCharge;
+    const deliveryCharge = config.pricing.deliveryCharge;
+    return { pages, base, a3Extra, serviceCharge, deliveryCharge, total: base + a3Extra + serviceCharge + deliveryCharge };
   }
 
   const p = calcPrice();
@@ -213,7 +223,6 @@ export default function NewOrder() {
   function openBookingModal() {
     if (!hasFiles) { showToast('Please upload at least one file to continue.', 'error'); return; }
     if (pagesStillDetecting) { showToast('Still detecting page count — please wait a moment.', 'error'); return; }
-    if (!printingSide) { showToast('Please choose single-sided or double-sided printing.', 'error'); return; }
     setModalOpen(true);
     goToStep('slot');
   }
@@ -251,14 +260,17 @@ export default function NewOrder() {
 
   async function loadTimeSlots() {
     setSlotsLoading(true);
-    let slotsData = [];
     try {
       const res = await fetch('/api/orders/slots', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        slotsData = data.slots || [];
+        setSlots(data.slots || []);
+      } else {
+        showToast('Could not load available slots.', 'error');
+        setSlots([]);
       }
     } catch {
+<<<<<<< HEAD
       // fall through to local cutoff
     }
     if (!slotsData.length) {
@@ -268,6 +280,11 @@ export default function NewOrder() {
       }));
     }
     setSlots(slotsData);
+=======
+      showToast('Connection error while loading slots.', 'error');
+      setSlots([]);
+    }
+>>>>>>> 32df33e (upload sys)
     setSlotsLoading(false);
   }
 
@@ -306,9 +323,10 @@ export default function NewOrder() {
     formData.append('paperSize', paperSize);
     formData.append('printingSide', printingSide);
     formData.append('totalPages', p.pages);
-    formData.append('copies', copies);
-    formData.append('spiralBinding', spiralBinding);
-    formData.append('expressDelivery', expressDelivery);
+    const totalCopies = files.reduce((sum, f) => sum + f.copies, 0);
+    formData.append('copies', totalCopies);
+    formData.append('spiralBinding', 'false');
+    formData.append('expressDelivery', 'false');
     formData.append('totalPrice', p.total);
     formData.append('collectionLocationId', selectedLocationId);
     formData.append('collectionLocation', selectedLocationName);
@@ -477,27 +495,54 @@ export default function NewOrder() {
                 </div>
 
                 <div className="files-list" id="filesList">
-                  {files.map((f) => {
-                    let pagesText;
-                    if (f.pages === null) {
-                      pagesText = (
-                        <span className="file-pages-detecting">
-                          <span className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2 }}></span> Detecting pages…
-                        </span>
-                      );
-                    } else {
-                      pagesText = `${f.pages} page${f.pages > 1 ? 's' : ''}${f.estimated ? ' (estimated)' : ''}`;
-                    }
-                    return (
-                      <div className="file-item" key={f.key}>
-                        <div className="file-item-info">
-                          <span className="file-item-name">{f.file.name}</span>
-                          <span className="file-item-size">{formatSize(f.file.size)} · {pagesText}</span>
-                        </div>
-                        <button className="file-remove" title="Remove" onClick={() => removeFile(f.key)}>✕</button>
+                  {files.length === 0 ? (
+                    <div className="empty-files-state" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                      <p>No files uploaded yet</p>
+                      <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>Upload your PDF files to start your print order.</p>
+                      <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                        + Upload PDFs
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {files.map((f) => {
+                        let pagesText;
+                        if (f.pages === null) {
+                          pagesText = (
+                            <span className="file-pages-detecting">
+                              <span className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2 }}></span> Detecting pages…
+                            </span>
+                          );
+                        } else {
+                          pagesText = `${f.pages} page${f.pages > 1 ? 's' : ''}${f.estimated ? ' (estimated)' : ''}`;
+                        }
+                        return (
+                          <div className="file-item" key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderBottom: '1px solid #eee', gap: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+                              <div className="file-icon" style={{ fontSize: '1.5rem' }}>📄</div>
+                              <div className="file-item-info">
+                                <div className="file-item-name" style={{ fontWeight: '600' }}>{f.file.name}</div>
+                                <div className="file-item-size" style={{ fontSize: '0.8rem', color: '#666' }}>{formatSize(f.file.size)} · {pagesText}</div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <div className="counter" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <button className="counter-btn" onClick={() => updateFileCopies(f.key, -1)}>−</button>
+                                <span className="counter-value" style={{ minWidth: '1.5rem', textAlign: 'center' }}>{f.copies}</span>
+                                <button className="counter-btn" onClick={() => updateFileCopies(f.key, 1)}>+</button>
+                              </div>
+                              <button className="file-remove" title="Remove" onClick={() => removeFile(f.key)}>✕</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div style={{ marginTop: '1rem', textAlign: 'right' }}>
+                        <button className="btn btn-link" onClick={clearAllFiles} style={{ fontSize: '0.85rem', color: '#ef4444', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>
+                          Clear All Files
+                        </button>
                       </div>
-                    );
-                  })}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -528,37 +573,22 @@ export default function NewOrder() {
                   <div className="setting-group">
                     <span className="setting-label">Printing Side <span style={{ color: '#ef4444' }}>*</span></span>
                     <div className="toggle-group" id="sideGroup">
-                      <button className={toggleClass(printingSide === 'single')} onClick={() => setPrintingSide('single')}>Single-Sided</button>
-                      <button className={toggleClass(printingSide === 'double')} onClick={() => setPrintingSide('double')}>Double-Sided</button>
+                      <button className={toggleClass(printingSide === 'single')} onClick={() => setPrintingSide('single')}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600' }}>Single-Sided</span>
+                          <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Print on one side</span>
+                        </div>
+                      </button>
+                      <button className={toggleClass(printingSide === 'double')} onClick={() => setPrintingSide('double')}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600' }}>Double-Sided</span>
+                          <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Print on both sides</span>
+                        </div>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="setting-group">
-                    <span className="setting-label">Number of Copies</span>
-                    <div className="counter">
-                      <button className="counter-btn" aria-label="Decrease copies" onClick={() => setCopies((c) => Math.max(1, c - 1))}>−</button>
-                      <span className="counter-value">{copies}</span>
-                      <button className="counter-btn" aria-label="Increase copies" onClick={() => setCopies((c) => Math.min(99, c + 1))}>+</button>
-                    </div>
-                  </div>
 
-                  <div className="setting-group">
-                    <span className="setting-label">Add-ons</span>
-                    <div className="addons-list">
-                      <div className={`addon-item${spiralBinding ? ' selected' : ''}`} onClick={() => setSpiralBinding((v) => !v)}>
-                        <span className="addon-label">Spiral Binding (+₹20)</span>
-                        <div className="addon-check">
-                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 6 5 9 10 3"></polyline></svg>
-                        </div>
-                      </div>
-                      <div className={`addon-item${expressDelivery ? ' selected' : ''}`} onClick={() => setExpressDelivery((v) => !v)}>
-                        <span className="addon-label">Express Delivery (+₹15)</span>
-                        <div className="addon-check">
-                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 6 5 9 10 3"></polyline></svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -570,20 +600,16 @@ export default function NewOrder() {
 
               <div className="summary-lines">
                 <div className="summary-line">
-                  <span className="summary-line-label">Base Price ({p.pages} pg × {copies}x · {colorOption === 'bw' ? 'B&W' : 'Color'})</span>
-                  <span className="summary-line-value">₹{p.base}</span>
+                  <span className="summary-line-label">Printing Charges ({p.pages} pages)</span>
+                  <span className="summary-line-value">₹{p.base + p.a3Extra}</span>
                 </div>
-                <div className="summary-line" style={{ display: paperSize === 'A3' ? '' : 'none' }}>
-                  <span className="summary-line-label">A3 Upcharge</span>
-                  <span className="summary-line-value">₹{p.a3Extra}</span>
+                <div className="summary-line">
+                  <span className="summary-line-label">Service Charge</span>
+                  <span className="summary-line-value">₹{p.serviceCharge}</span>
                 </div>
-                <div className="summary-line" style={{ display: spiralBinding ? '' : 'none' }}>
-                  <span className="summary-line-label">Spiral Binding</span>
-                  <span className="summary-line-value">₹20</span>
-                </div>
-                <div className="summary-line" style={{ display: expressDelivery ? '' : 'none' }}>
-                  <span className="summary-line-label">Express Delivery</span>
-                  <span className="summary-line-value">₹15</span>
+                <div className="summary-line">
+                  <span className="summary-line-label">Delivery Charge</span>
+                  <span className="summary-line-value">₹{p.deliveryCharge}</span>
                 </div>
               </div>
 
@@ -594,13 +620,14 @@ export default function NewOrder() {
                 <span className="summary-total-amount">₹{p.total}</span>
               </div>
 
-              <button className="confirm-btn" disabled={!hasFiles || pagesStillDetecting || !printingSide} onClick={openBookingModal}>
+              <button className="confirm-btn" disabled={!hasFiles || pagesStillDetecting} onClick={openBookingModal}>
                 Start Order
               </button>
               <p className="summary-note">{summaryNote}</p>
             </div>
           </div>
         </main>
+        <Footer />
       </div>
 
       {/* Booking flow: Time → Location → Review */}
@@ -630,7 +657,50 @@ export default function NewOrder() {
             </button>
           </div>
 
+<<<<<<< HEAD
           {/* Step 1: Time slots */}
+=======
+          {/* Step 1: Location */}
+          <section className="cp-step-view" hidden={step !== 'location'}>
+            <div className="cp-view-header">
+              <span className="location-tag">📍 Collection Point</span>
+              <h2 className="location-title" style={{ marginTop: '0.5rem' }}>Where should we deliver your prints?</h2>
+              <p className="location-subtitle">Choose your preferred collection point on campus.</p>
+            </div>
+            <div className="cp-cards-grid">
+              {config?.locations?.map((loc) => {
+                const icons = {
+                  'main-gate': <path d="M3 21V3h18v18M3 12h18M12 3v18" />,
+                  'academic-block': <path d="M3 21h18M4 18h16M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 3L2 9h20L12 3z" />,
+                  'hostel-gate': (
+                    <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>
+                  ),
+                };
+                return (
+                  <button
+                    key={loc.id}
+                    type="button"
+                    className={`cp-loc-card${loc.id === selectedLocationId ? ' is-selected' : ''}`}
+                    onClick={() => { setSelectedLocationId(loc.id); setSelectedLocationName(loc.name); }}
+                  >
+                    <div className="cp-card-icon">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icons[loc.id] || <circle cx="12" cy="12" r="10" />}</svg>
+                    </div>
+                    <h3 className="cp-card-title">{loc.name}</h3>
+                    <p className="cp-card-sub">{loc.hint}</p>
+                  </button>
+                );
+              }) || <p style={{ textAlign: 'center', width: '100%' }}>Loading locations...</p>}
+            </div>
+            <div className="cp-step-footer">
+              <button type="button" className="btn btn-primary" disabled={!selectedLocationId} onClick={() => goToStep('slot')}>
+                Continue to Time Slot <span className="arrow-icon">→</span>
+              </button>
+            </div>
+          </section>
+
+          {/* Step 2: Time slots */}
+>>>>>>> 32df33e (upload sys)
           <section className="cp-step-view" hidden={step !== 'slot'}>
             <div className="cp-view-header">
               <span className="location-tag">🕒 Pickup Schedule</span>
@@ -758,27 +828,21 @@ export default function NewOrder() {
                 <h3 className="cp-review-heading">Order Summary</h3>
                 <div className="cp-review-details-list">
                   <div className="cp-review-line">
-                    <span>Documents ({files.length} file{files.length > 1 ? 's' : ''} · {p.pages} pg)</span>
-                    <strong>{files.map((f) => f.file.name).join(', ')}</strong>
+                    <span>Documents ({files.length} file{files.length > 1 ? 's' : ''} · {p.pages} total pages)</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      {files.map(f => (
+                        <span key={f.key} style={{ fontSize: '0.8rem' }}>{f.file.name}: {f.copies}x</span>
+                      ))}
+                    </div>
                   </div>
                   <div className="cp-review-line">
                     <span>Print Mode</span>
-                    <strong>{colorOption === 'bw' ? 'B&W (₹2/pg)' : 'Color (₹5/pg)'}</strong>
+                    <strong>{colorOption === 'bw' ? `B&W (₹${config?.pricing?.bw}/pg)` : `Color (₹${config?.pricing?.color}/pg)`}</strong>
                   </div>
                   <div className="cp-review-line">
-                    <span>Paper &amp; Copies</span>
-                    <strong>{paperSize === 'A3' ? 'A3 (+₹10)' : 'A4'} · {copies} Copy{copies > 1 ? 'ies' : ''}</strong>
+                    <span>Paper &amp; Side</span>
+                    <strong>{paperSize === 'A3' ? `A3 (+₹${config?.pricing?.a3Extra})` : 'A4'} · {printingSide === 'double' ? 'Double-Sided' : 'Single-Sided'}</strong>
                   </div>
-                  <div className="cp-review-line">
-                    <span>Printing Side</span>
-                    <strong>{printingSide === 'double' ? 'Double-Sided' : 'Single-Sided'}</strong>
-                  </div>
-                  {spiralBinding && (
-                    <div className="cp-review-line"><span>Add-on</span><strong>Spiral Binding (+₹20)</strong></div>
-                  )}
-                  {expressDelivery && (
-                    <div className="cp-review-line"><span>Add-on</span><strong>Express Delivery (+₹15)</strong></div>
-                  )}
                 </div>
                 <div className="cp-review-total">
                   <span>Total Amount</span>
@@ -801,7 +865,6 @@ export default function NewOrder() {
         </div>
       </div>
 
-      <Footer />
       <Toast toast={toast} />
     </>
   );

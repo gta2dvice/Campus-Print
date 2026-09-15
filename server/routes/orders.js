@@ -22,6 +22,23 @@ function paymentGatewayReady() {
     return cashfree.isConfigured();
 }
 
+// ── Order Configuration ─────────────────────
+const PRICING = {
+    bw: 2,
+    color: 5,
+    a3Extra: 10,
+    serviceCharge: 0,
+    deliveryCharge: 0
+};
+
+// @route  GET /api/orders/config
+router.get('/config', (req, res) => {
+    res.json({
+        pricing: PRICING,
+        locations: slots.LOCATIONS
+    });
+});
+
 // Single-shop deployment today: new orders always go to shop id 1.
 // (Shop selection would be added here if/when multiple shops go live.)
 const DEFAULT_SHOP_ID = 1;

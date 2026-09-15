@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import PageBackground from '../components/PageBackground';
 import SocialLinks from '../components/SocialLinks';
+import Footer from '../components/Footer';
 import useBodyClass from '../lib/useBodyClass';
 import useDocumentTitle from '../lib/useDocumentTitle';
 import '../styles/style.css';
@@ -120,8 +121,7 @@ export default function About() {
             </article>
 
           </div>
-        </section>
-
+        <Footer />
       </div>
     </>
   );

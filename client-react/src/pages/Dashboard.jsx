@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState(null);
+  const [stats, setStats] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
 
   useEffect(() => {
@@ -37,6 +38,9 @@ export default function Dashboard() {
         const ordersRes = await fetch('/api/orders', { credentials: 'include' });
         if (ordersRes.ok) setOrders(await ordersRes.json());
 
+        const statsRes = await fetch('/api/orders/stats', { credentials: 'include' });
+        if (statsRes.ok) setStats(await statsRes.json());
+
       } catch {
         navigate('/');
         return;
@@ -48,7 +52,21 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [navigate]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '1.2rem',
+        color: '#666',
+        fontFamily: 'inherit'
+      }}>
+        Loading your dashboard...
+      </div>
+    );
+  }
 
   const displayName = profile?.full_name || (authStatus?.email || '').split('@')[0];
 
@@ -70,6 +88,22 @@ export default function Dashboard() {
           </div>
 
           <div className="dashboard-grid" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Stats Overview */}
+            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div className="stat-card" style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>Total Orders</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary-blue, #3b82f6)' }}>{stats?.total || 0}</div>
+              </div>
+              <div className="stat-card" style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>In Progress</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>{stats?.in_progress || 0}</div>
+              </div>
+              <div className="stat-card" style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>Ready</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>{stats?.ready || 0}</div>
+              </div>
+            </div>
+
             {/* Profile Section */}
             <div className="dashboard-card" style={{ background: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -135,85 +169,6 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        </main>
-      </div>
-
-      <Toast toast={toast} />
-    </>
-  );
-}
-0"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-              </div>
-              <div className="stat-number" id="inProgress">{stats.in_progress || 0}</div>
-              <div className="stat-label">In Progress</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-              </div>
-              <div className="stat-number" id="readyCount">{stats.ready || 0}</div>
-              <div className="stat-label">Ready / Completed</div>
-            </div>
-          </div>
-
-          <div className="orders-section">
-            <h2 className="section-title">Recent Orders</h2>
-            <div id="ordersContainer">
-              {!orders || orders.length === 0 ? (
-                <div className="empty-state" id="emptyState">
-                  <div className="empty-icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                      <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                  </div>
-                  <h3>No orders yet</h3>
-                  <p>You haven't printed anything yet.</p>
-                  <a href="/new-order" className="new-order-link" style={{ fontSize: '0.875rem', padding: '0.6rem 1.25rem' }}>
-                    Start your first order
-                  </a>
-                </div>
-              ) : (
-                <div className="orders-table-wrap">
-                  <table className="orders-table">
-                    <thead>
-                      <tr>
-                        <th>Order ID</th>
-                        <th>Date</th>
-                        <th>Details</th>
-                        <th>Status</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((o) => {
-                        const date = new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                        const color = o.color_option === 'bw' ? 'B&W' : 'Color';
-                        const status = o.status || 'pending';
-                        return (
-                          <tr key={o.id}>
-                            <td>#{String(o.id).padStart(4, '0')}</td>
-                            <td>{date}</td>
-                            <td>{color} · {o.paper_size} · {o.copies}x</td>
-                            <td><span className={`status-badge status-${status}`}>{STATUS_LABELS[status] || status}</span></td>
-                            <td><strong>₹{parseFloat(o.total_price).toFixed(0)}</strong></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
           </div>
         </main>

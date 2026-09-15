@@ -34,12 +34,7 @@ body {
 }
 
 /* ── FloatingLines viewport background (does not intercept pointer events) ── */
-.page-background {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
     isolation: isolate;
     background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 45%, #0c4a6e 100%);
@@ -97,7 +92,7 @@ body {
     background: #f3f7fb;
     border-radius: 40px 40px 0 0;
     box-shadow: 0 -30px 80px rgba(0, 0, 0, 0.22);
-    overflow: hidden;
+    /* overflow: hidden; */
     /* no min-height — sections define their own height */
 }
 

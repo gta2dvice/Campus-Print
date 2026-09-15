@@ -4,6 +4,7 @@ import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
 import useDocumentTitle from '../lib/useDocumentTitle';
+import LogoLink from '../components/LogoLink';
 import '../styles/style.css';
 
 export default function OrderDetails() {
@@ -44,7 +45,8 @@ export default function OrderDetails() {
     const STATUS_LABELS = { pending: 'Pending', accepted: 'Accepted', printing: 'Printing', ready: 'Ready', completed: 'Completed', rejected: 'Rejected', cancelled: 'Cancelled' };
 
     return (
-        <div className="app-layout" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+        <div className="app-layout" style={{ position: 'relative', justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+            <LogoLink />
             <div className="order-details-card" style={{ maxWidth: '500px', width: '100%', background: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', color: '#333' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h2 style={{ margin: 0 }}>Order #{order.ticket_number || order.id}</h2>

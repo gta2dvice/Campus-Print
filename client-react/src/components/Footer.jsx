@@ -24,7 +24,7 @@ export default function Footer() {
     if (loading) return null;
 
     return (
-        <footer className="site-footer reveal">
+        <footer className="site-footer">
             <div className="footer-watermark">PRINT CAMPUS</div>
             <div className="footer-inner">
                 <div className="footer-brand">

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import PageBackground from '../components/PageBackground';
 import Footer from '../components/Footer';
+import LogoLink from '../components/LogoLink';
 import useBodyClass from '../lib/useBodyClass';
 import useDocumentTitle from '../lib/useDocumentTitle';
 import '../styles/style.css';
@@ -38,6 +39,7 @@ export default function Ticket() {
   return (
     <>
       <PageBackground />
+      <LogoLink />
 
       <div className="ticket-page-wrapper">
         <div className="booking-orb booking-orb-1"></div>

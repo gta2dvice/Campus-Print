@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 
 export default function DashboardSidebar({ userName }) {
   const navigate = useNavigate();
@@ -16,8 +16,9 @@ export default function DashboardSidebar({ userName }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="logo-mark">CP</div>
-        <span className="logo-text">CampusPrint</span>
+        <Link to="/" className="logo-link">
+          <img src="/cp.png" alt="CampusPrint Logo" className="sidebar-logo" />
+        </Link>
       </div>
 
       <nav className="sidebar-nav">

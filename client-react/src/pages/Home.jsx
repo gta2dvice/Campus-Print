@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthModal from '../components/AuthModal';
 import PageBackground from '../components/PageBackground';
 import Footer from '../components/Footer';
@@ -15,7 +16,7 @@ const STUDENTS = [
   { name: 'Yashavii', branch: 'CSE AI-ML', color: '56, 189, 248', review: 'Upload system is smooth and no more long queues.' },
 ];
 
-const PRICES = { bw: 2, color: 5, a3: 10, spiral: 20, express: 15 };
+const ALLOWED_TYPES = ['application/pdf'];
 
 function smoothScrollToElement(target) {
   if (!target) return;
@@ -26,11 +27,103 @@ function smoothScrollToElement(target) {
 
 export default function Home() {
   useDocumentTitle('Print Campus - Skip Queue');
+  const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
   const heroTextRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  const [state, setState] = useState({ pages: 10, color: 'bw', size: 'A4', spiral: false, express: false });
+  const [files, setFiles] = useState([]); // [{ key, file, pages, estimated, copies }]
+  const [color, setColor] = useState('bw');
+  const [size, setSize] = useState('A4');
+  const [printingSide, setPrintingSide] = useState('single');
+  const [config, setConfig] = useState(null);
+
   const [bump, setBump] = useState(false);
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  async function addFiles(newFiles) {
+    const accepted = [];
+    newFiles.forEach((file) => {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        alert(`${file.name}: only PDF files are allowed.`);
+        return;
+      }
+      accepted.push({ key: Math.random(), file, pages: null, estimated: false, copies: 1 });
+    });
+    if (accepted.length === 0) return;
+    setFiles((prev) => [...prev, ...accepted]);
+    detectPagesFor(accepted);
+  }
+
+  async function detectPagesFor(newlyAdded) {
+    const formData = new FormData();
+    newlyAdded.forEach((entry) => formData.append('files', entry.file));
+    try {
+      const res = await fetch('/api/orders/detect-pages', {
+        method: 'POST', credentials: 'include', body: formData
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const results = data.files;
+      setFiles((prev) => prev.map((entry) => {
+        const idx = newlyAdded.findIndex((n) => n.key === entry.key);
+        if (idx === -1) return entry;
+        const result = results[idx];
+        return { ...entry, pages: result.pages, estimated: !!result.estimated };
+      }));
+    } catch {
+      setFiles((prev) => prev.map((entry) =>
+        newlyAdded.some((n) => n.key === entry.key) ? { ...entry, pages: 1, estimated: true } : entry
+      ));
+    }
+  }
+
+  function removeFile(key) {
+    setFiles((prev) => prev.filter((f) => f.key !== key));
+  }
+
+  function clearAllFiles() {
+    setFiles([]);
+  }
+
+  function updateFileCopies(key, delta) {
+    setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, copies: Math.max(1, f.copies + delta) } : f)));
+  }
+
+  const totalPages = files.reduce((sum, f) => sum + ((f.pages || 1) * f.copies), 0);
+
+  function calcPrice() {
+    if (!config) return { basePrice: 0, a3Extra: 0, total: 0 };
+    const basePerPage = config.pricing[color];
+    const basePrice = totalPages * basePerPage;
+    const a3Extra = size === 'A3' ? totalPages * config.pricing.a3Extra : 0;
+    return { basePrice, a3Extra, total: basePrice + a3Extra };
+  }
+
+  const { basePrice, a3Extra, total } = calcPrice();
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/orders/config', { credentials: 'include' });
+        if (res.ok) setConfig(await res.json());
+      } catch (err) {
+        console.error('Failed to load config', err);
+      }
+    }
+    loadConfig();
+  }, []);
+
+  useEffect(() => {
+    setBump(true);
+    const t = setTimeout(() => setBump(false), 300);
+    return () => clearTimeout(t);
+  }, [total]);
 
   // ── Hero scroll blur/fade ──
   useEffect(() => {
@@ -101,9 +194,10 @@ export default function Home() {
     try {
       const res = await fetch('/api/auth/status', { credentials: 'include' });
       const data = await res.json();
-      if (data.isLoggedIn) window.location.href = '/new-order';
+      if (data.isLoggedIn) navigate('/new-order');
       else { setAuthRedirect('/new-order'); setModalOpen(true); }
     } catch {
+      setAuthRedirect('/new-order');
       setModalOpen(true);
     }
   }
@@ -112,32 +206,18 @@ export default function Home() {
     smoothScrollToElement(document.getElementById(id));
   }
 
-  const perPage = PRICES[state.color];
-  const base = state.pages * perPage;
-  const a3Add = state.size === 'A3' ? PRICES.a3 : 0;
-  const spiralAdd = state.spiral ? PRICES.spiral : 0;
-  const expressAdd = state.express ? PRICES.express : 0;
-  const total = base + a3Add + spiralAdd + expressAdd;
-  const sliderPct = ((state.pages - 1) / (200 - 1)) * 100;
-
-  useEffect(() => {
-    setBump(true);
-    const t = setTimeout(() => setBump(false), 300);
-    return () => clearTimeout(t);
-  }, [total]);
-
   async function handleOrderClick() {
     try {
       localStorage.setItem('cp_pending_order', JSON.stringify({
-        color: state.color, size: state.size, spiral: state.spiral, express: state.express,
+        color, size, printingSide,
       }));
     } catch {
-      // localStorage unavailable — New Order just falls back to its own defaults
+      // localStorage unavailable
     }
     try {
       const res = await fetch('/api/auth/status', { credentials: 'include' });
       const data = await res.json();
-      if (data.isLoggedIn) window.location.href = '/new-order';
+      if (data.isLoggedIn) navigate('/new-order');
       else { setAuthRedirect('/new-order'); setModalOpen(true); }
     } catch {
       setAuthRedirect('/new-order');
@@ -197,8 +277,13 @@ export default function Home() {
                   <div className="location-detail-item">
                     <span className="detail-icon">🏛️</span>
                     <div>
+<<<<<<< HEAD
                       <strong>Delivey Points</strong>
                       <p>1.Main Gate<br />2.Red Canteen<br />3.Hostel Gate</p>
+=======
+                      <strong>Delivery Points</strong>
+                      <p>1.Main Gate<br />2.Academic Block<br />3.Hostel Gate</p>
+>>>>>>> 32df33e (upload sys)
                     </div>
                   </div>
                   <div className="location-detail-item">
@@ -273,7 +358,7 @@ export default function Home() {
                 <span className="pricing-tag">💰 Transparent Pricing</span>
                 <h2 className="pricing-title">Simple &amp; Affordable</h2>
                 <p className="pricing-subtitle">
-                  No hidden charges. Slide through the options below and see your estimated cost instantly.
+                  No hidden charges. Upload your PDFs below and see your estimated cost instantly.
                 </p>
               </div>
 
@@ -282,11 +367,11 @@ export default function Home() {
                   <div className="pc-icon">🖨️</div>
                   <h3 className="pc-title">Color Mode</h3>
                   <div className="pc-toggle-group" id="pcColorGroup">
-                    <button className={`pc-chip${state.color === 'bw' ? ' active' : ''}`} onClick={() => setState((s) => ({ ...s, color: 'bw' }))}>
+                    <button className={`pc-chip${color === 'bw' ? ' active' : ''}`} onClick={() => setColor('bw')}>
                       B&amp;W
                       <span className="pc-chip-price">₹2 / page</span>
                     </button>
-                    <button className={`pc-chip${state.color === 'color' ? ' active' : ''}`} onClick={() => setState((s) => ({ ...s, color: 'color' }))}>
+                    <button className={`pc-chip${color === 'color' ? ' active' : ''}`} onClick={() => setColor('color')}>
                       Color
                       <span className="pc-chip-price">₹5 / page</span>
                     </button>
@@ -297,103 +382,131 @@ export default function Home() {
                   <div className="pc-icon">📄</div>
                   <h3 className="pc-title">Paper Size</h3>
                   <div className="pc-toggle-group" id="pcSizeGroup">
-                    <button className={`pc-chip${state.size === 'A4' ? ' active' : ''}`} onClick={() => setState((s) => ({ ...s, size: 'A4' }))}>
+                    <button className={`pc-chip${size === 'A4' ? ' active' : ''}`} onClick={() => setSize('A4')}>
                       A4
                       <span className="pc-chip-price">Standard</span>
                     </button>
-                    <button className={`pc-chip${state.size === 'A3' ? ' active' : ''}`} onClick={() => setState((s) => ({ ...s, size: 'A3' }))}>
+                    <button className={`pc-chip${size === 'A3' ? ' active' : ''}`} onClick={() => setSize('A3')}>
                       A3
                       <span className="pc-chip-price">+₹10</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="pricing-card pc-addon-card" id="pcAddonCard">
-                  <div className="pc-icon">✨</div>
-                  <h3 className="pc-title">Add-ons</h3>
-                  <div className="pc-addons">
-                    <label className="pc-addon-row" id="pcAddonSpiral">
-                      <input
-                        type="checkbox"
-                        className="pc-addon-check"
-                        checked={state.spiral}
-                        onChange={(e) => setState((s) => ({ ...s, spiral: e.target.checked }))}
-                      />
-                      <span className="pc-addon-box"></span>
-                      <span className="pc-addon-text">Spiral Binding</span>
-                      <span className="pc-addon-badge">+₹20</span>
-                    </label>
-                    <label className="pc-addon-row" id="pcAddonExpress">
-                      <input
-                        type="checkbox"
-                        className="pc-addon-check"
-                        checked={state.express}
-                        onChange={(e) => setState((s) => ({ ...s, express: e.target.checked }))}
-                      />
-                      <span className="pc-addon-box"></span>
-                      <span className="pc-addon-text">Express Delivery</span>
-                      <span className="pc-addon-badge">+₹15</span>
-                    </label>
+                <div className="pricing-card" id="pcSideCard">
+                  <div className="pc-icon">↕️</div>
+                  <h3 className="pc-title">Printing Side</h3>
+                  <div className="pc-toggle-group" id="pcSideGroup">
+                    <button className={`pc-chip${printingSide === 'single' ? ' active' : ''}`} onClick={() => setPrintingSide('single')}>
+                      Single
+                      <span className="pc-chip-price">One Side</span>
+                    </button>
+                    <button className={`pc-chip${printingSide === 'double' ? ' active' : ''}`} onClick={() => setPrintingSide('double')}>
+                      Double
+                      <span className="pc-chip-price">Both Sides</span>
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div className="pricing-slider-wrap">
-                <div className="slider-label-row">
-                  <span className="slider-label-text">Number of Pages</span>
-                  <span className="slider-value-badge" id="pcPagesDisplay">{state.pages === 1 ? '1 page' : `${state.pages} pages`}</span>
-                </div>
-                <div className="slider-track-wrap">
+              <div className="upload-interactive-section" style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+                <div className="upload-zone-home"
+                     style={{
+                       width: '100%',
+                       maxWidth: '600px',
+                       border: '2px dashed var(--primary-blue, #3b82f6)',
+                       borderRadius: '1rem',
+                       padding: '2rem',
+                       textAlign: 'center',
+                       cursor: 'pointer',
+                       background: 'rgba(59, 130, 246, 0.05)',
+                       transition: 'all 0.2s ease'
+                     }}
+                     onClick={() => fileInputRef.current?.click()}
+                     onDragOver={(e) => { e.preventDefault(); }}
+                     onDrop={(e) => { e.preventDefault(); addFiles([...e.dataTransfer.files]); }}
+                >
                   <input
-                    type="range"
-                    className="pricing-range"
-                    id="pcPagesSlider"
-                    min="1"
-                    max="200"
-                    step="1"
-                    value={state.pages}
-                    onChange={(e) => setState((s) => ({ ...s, pages: parseInt(e.target.value, 10) }))}
-                    style={{ '--slider-pct': `${sliderPct.toFixed(1)}%` }}
-                    aria-label="Number of pages"
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf"
+                    style={{ display: 'none' }}
+                    onChange={(e) => { addFiles([...e.target.files]); e.target.value = ''; }}
                   />
-                  <div className="slider-fill" id="pcSliderFill"></div>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📄</div>
+                  <h3 style={{ fontSize: '1.2rem', margin: '0 0 0.5rem 0' }}>Upload Your PDFs</h3>
+                  <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1rem' }}>Drag &amp; drop your PDF files here or click to browse</p>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>+ Choose PDF Files</button>
+                  <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>You can upload multiple PDFs</p>
                 </div>
-                <div className="slider-ends">
-                  <span>1 page</span>
-                  <span>200 pages</span>
-                </div>
+
+                {files.length > 0 && (
+                  <div className="home-files-list" style={{ width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Uploaded Files ({files.length})</h4>
+                      <button onClick={clearAllFiles} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>Clear All</button>
+                    </div>
+                    {files.map((f) => (
+                      <div key={f.key} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '1rem',
+                        background: 'white',
+                        borderRadius: '0.75rem',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                        border: '1px solid #eee',
+                        gap: '1rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+                          <span style={{ fontSize: '1.2rem' }}>📄</span>
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{f.file.name}</div>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>{formatSize(f.file.size)} · {f.pages === null ? 'Detecting...' : `${f.pages} pages`}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div className="counter" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f3f4f6', padding: '0.25rem', borderRadius: '0.5rem' }}>
+                            <button className="counter-btn" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }} onClick={() => updateFileCopies(f.key, -1)}>−</button>
+                            <span style={{ minWidth: '1.5rem', textAlign: 'center', fontSize: '0.9rem', fontWeight: '600' }}>{f.copies}</span>
+                            <button className="counter-btn" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }} onClick={() => updateFileCopies(f.key, 1)}>+</button>
+                          </div>
+                          <button onClick={() => removeFile(f.key)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                        </div>
+                      </div>
+                    ))}
+                    <button className="btn btn-secondary" style={{ width: 'fit-content', alignSelf: 'center', fontSize: '0.85rem' }} onClick={() => fileInputRef.current?.click()}>+ Add More PDFs</button>
+                  </div>
+                )}
               </div>
 
               <div className="pricing-total-wrap">
                 <div className="pricing-total-card">
                   <div className="ptc-breakdown" id="pcBreakdown">
-                    <span className="ptc-line"><span className="ptc-line-label" id="ptcBaseLabel">{state.pages} page{state.pages > 1 ? 's' : ''} × ₹{perPage} ({state.color === 'bw' ? 'B&W' : 'Color'})</span><span className="ptc-line-val" id="ptcBaseVal">₹{base}</span></span>
-                    <span className={`ptc-line${state.size !== 'A3' ? ' ptc-line-hidden' : ''}`} id="ptcSizeLine"><span className="ptc-line-label">A3 Upcharge</span><span className="ptc-line-val" id="ptcSizeVal">₹{a3Add}</span></span>
-                    <span className={`ptc-line${!state.spiral ? ' ptc-line-hidden' : ''}`} id="ptcSpiralLine"><span className="ptc-line-label">Spiral Binding</span><span className="ptc-line-val">₹{PRICES.spiral}</span></span>
-                    <span className={`ptc-line${!state.express ? ' ptc-line-hidden' : ''}`} id="ptcExpressLine"><span className="ptc-line-label">Express Delivery</span><span className="ptc-line-val">₹{PRICES.express}</span></span>
+                    <span className="ptc-line"><span className="ptc-line-label">Total Pages</span><span className="ptc-line-val">{totalPages} pages</span></span>
+                    <span className="ptc-line"><span className="ptc-line-label">Printing Charges</span><span className="ptc-line-val">₹{basePrice + a3Extra}</span></span>
+                    <span className="ptc-line"><span className="ptc-line-label">Service Charge</span><span className="ptc-line-val">₹{config?.pricing?.serviceCharge || 0}</span></span>
+                    <span className="ptc-line"><span className="ptc-line-label">Delivery Charge</span><span className="ptc-line-val">₹{config?.pricing?.deliveryCharge || 0}</span></span>
                   </div>
                   <div className="ptc-divider"></div>
                   <div className="ptc-total-row">
                     <span className="ptc-total-label">Estimated Total</span>
-                    <span className={`ptc-total-amount${bump ? ' bump' : ''}`} id="pcTotalAmount">₹{total}</span>
+                    <span className={`ptc-total-amount${bump ? ' bump' : ''}`} id="pcTotalAmount">₹{total + (config?.pricing?.serviceCharge || 0) + (config?.pricing?.deliveryCharge || 0)}</span>
                   </div>
                   <p className="ptc-note">Final price calculated per page after upload. Copies can be set in the order form.</p>
-                  <button className="btn btn-primary ptc-order-btn" id="ptcOrderBtn" onClick={handleOrderClick}>
+                  <button className="btn btn-primary ptc-order-btn" id="ptcOrderBtn" disabled={files.length === 0} onClick={handleOrderClick}>
                     Start Your Order <span className="arrow-icon">→</span>
                   </button>
                 </div>
               </div>
-
             </div>
           </section>
-
-          {/* FOOTER */}
           <Footer />
-
         </main>
       </div>
 
       <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} />
-    </>
+	</>
   );
 }

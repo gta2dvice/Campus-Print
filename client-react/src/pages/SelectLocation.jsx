@@ -1,10 +1,16 @@
+<<<<<<< HEAD
 import { useEffect, useState } from 'react';
+=======
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+>>>>>>> 32df33e (upload sys)
 import PageBackground from '../components/PageBackground';
 import Footer from '../components/Footer';
 import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
 import useDocumentTitle from '../lib/useDocumentTitle';
+import LogoLink from '../components/LogoLink';
 import '../styles/style.css';
 import '../styles/dashboard.css';
 
@@ -144,8 +150,9 @@ export default function SelectLocation() {
   }
 
   return (
-    <div className="page-content">
+    <div className="page-content" style={{ position: 'relative' }}>
       <PageBackground />
+      <LogoLink />
       <main className="booking-container reveal-wrapper" style={{ maxWidth: 1000, margin: '3rem auto', minHeight: 'calc(100vh - 6rem)' }}>
         <div className="booking-orb booking-orb-1"></div>
         <div className="booking-orb booking-orb-2"></div>
@@ -326,9 +333,8 @@ export default function SelectLocation() {
           )}
 
         </div>
-      </main>
-
       <Footer />
+      </main>
       <Toast toast={toast} />
     </div>
   );

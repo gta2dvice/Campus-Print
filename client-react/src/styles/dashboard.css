@@ -58,6 +58,21 @@
     border-bottom: 1px solid #f0f4f8;
 }
 
+.logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    width: 100%;
+}
+
+.sidebar-logo {
+    height: 40px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    display: block;
+}
+
 .logo-mark {
     width: 36px;
     height: 36px;

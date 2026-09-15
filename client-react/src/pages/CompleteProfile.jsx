@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
 import useDocumentTitle from '../lib/useDocumentTitle';
+import LogoLink from '../components/LogoLink';
 import '../styles/style.css';
 
 export default function CompleteProfile() {
@@ -43,7 +44,8 @@ export default function CompleteProfile() {
     };
 
     return (
-        <div className="auth-container">
+        <div className="auth-container" style={{ position: 'relative' }}>
+            <LogoLink />
             <div className="auth-card">
                 <div className="auth-header">
                     <h1>Complete Your Profile</h1>
