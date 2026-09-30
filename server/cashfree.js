@@ -5,9 +5,15 @@ function isConfigured() {
 }
 
 function getMode() {
-    return (process.env.CASHFREE_ENV || 'sandbox').toLowerCase() === 'production'
-        ? 'production'
-        : 'sandbox';
+    const envSetting = (process.env.CASHFREE_ENV || '').toLowerCase();
+    if (envSetting === 'production') return 'production';
+    if (envSetting === 'sandbox') return 'sandbox';
+    const secret = process.env.CASHFREE_SECRET_KEY || '';
+    const appId = process.env.CASHFREE_APP_ID || '';
+    if (secret.includes('_prod_') || appId.includes('_prod_')) {
+        return 'production';
+    }
+    return 'sandbox';
 }
 
 function getClient() {

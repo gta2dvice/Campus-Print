@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import StatusBadge from '../../components/admin/StatusBadge';
 import Pagination from '../../components/admin/Pagination';
 import { adminApi, fmtMoney, fmtDate } from '../../lib/adminHelpers';
+import '../../styles/admin-effects.css';
 
 const PAY_STATUS_OPTIONS = ['success', 'refunded', 'pending', 'failed'];
 const PAY_LABELS = { success: 'Success', refunded: 'Refunded', pending: 'Pending', failed: 'Failed' };
@@ -50,55 +51,77 @@ export default function Transactions() {
   }
 
   return (
-    <div>
-      <div className="mb-5 flex flex-wrap items-center gap-2.5">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by order ID, email, or reference…"
-          className="rounded-[10px] border border-gray-200 bg-white px-3.5 py-[0.55rem] text-[0.85rem] text-gray-900 focus:border-blue-500 focus:outline-none"
-        />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded-[10px] border border-gray-200 bg-white px-3.5 py-[0.55rem] text-[0.85rem] text-gray-900 focus:border-blue-500 focus:outline-none"
-        >
-          <option value="">All statuses</option>
-          {PAY_STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{PAY_LABELS[s]}</option>
-          ))}
-        </select>
-        <button onClick={applyFilters} className="rounded-full bg-blue-500 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-white transition hover:bg-blue-600">Apply</button>
-        <button onClick={resetFilters} className="rounded-full border border-gray-200 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-gray-600 transition hover:border-blue-500 hover:bg-blue-500/[0.08] hover:text-blue-500">Reset</button>
+    <div className="space-y-6">
+      {/* Filter Card Container */}
+      <div className="admin-filter-card">
+        <div className="admin-filter-group">
+          <div className="admin-search-box">
+            <svg className="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search transaction ref, order ID, or email…"
+              className="admin-search-input"
+            />
+          </div>
+
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="admin-select"
+          >
+            <option value="">All Payment Statuses</option>
+            {PAY_STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{PAY_LABELS[s]}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={applyFilters} className="admin-btn-primary">
+            Apply Filters
+          </button>
+          <button onClick={resetFilters} className="admin-btn-secondary">
+            Reset
+          </button>
+        </div>
       </div>
 
-      <div className="rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
+      {/* Transactions Table Container */}
+      <div className="admin-card">
         {loading ? (
-          <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+          <div className="py-12 text-center text-xs font-semibold text-slate-400">Loading payment records...</div>
         ) : error ? (
-          <p className="py-6 text-center text-sm text-red-500">Couldn't load transactions. {error}</p>
+          <div className="py-8 text-center text-xs font-bold text-rose-600">Couldn't load transactions. {error}</div>
         ) : !data?.payments?.length ? (
-          <div className="py-6 text-center text-sm text-gray-400">No transactions match your filters.</div>
+          <div className="py-12 text-center text-xs font-semibold text-slate-400">No transaction records match your filters.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[0.85rem]">
+          <div className="admin-table-container">
+            <table className="admin-table">
               <thead>
                 <tr>
-                  {['Reference', 'Order', 'Customer', 'Amount', 'Status', 'Date'].map((h) => (
-                    <th key={h} className="whitespace-nowrap border-b border-gray-200 px-3 py-2.5 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
-                  ))}
+                  <th>Transaction Ref</th>
+                  <th>Order ID</th>
+                  <th>Customer Email</th>
+                  <th>Amount</th>
+                  <th>Payment Status</th>
+                  <th className="text-right">Date & Time</th>
                 </tr>
               </thead>
               <tbody>
                 {data.payments.map((p) => (
-                  <tr key={p.transaction_ref} className="transition hover:bg-blue-500/[0.03]">
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{p.transaction_ref}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">#{String(p.order_id).padStart(4, '0')}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{p.customer_email}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] font-bold text-gray-900">{fmtMoney(p.amount)}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]"><StatusBadge status={p.status} kind="payment" /></td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtDate(p.created_at)}</td>
+                  <tr key={p.transaction_ref}>
+                    <td className="font-mono text-xs font-bold text-slate-900">{p.transaction_ref}</td>
+                    <td className="font-bold text-blue-600">#{String(p.order_id).padStart(4, '0')}</td>
+                    <td className="font-medium text-slate-800">{p.customer_email}</td>
+                    <td className="font-black text-slate-900">{fmtMoney(p.amount)}</td>
+                    <td>
+                      <StatusBadge status={p.status} kind="payment" />
+                    </td>
+                    <td className="text-right text-xs text-slate-400 font-medium">{fmtDate(p.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -139,7 +139,7 @@ router.get('/:id', requireProfile, async (req, res) => {
 
 // POST /api/orders/detect-pages — auto-detects page count per uploaded file (PDF/DOCX get a
 // real count; images are always 1; anything else falls back to a flagged 1-page estimate).
-router.post('/detect-pages', requireProfile, detectUpload.array('files', 10), async (req, res) => {
+router.post('/detect-pages', detectUpload.array('files', 10), async (req, res) => {
     try {
         const files = req.files || [];
         if (files.length === 0) {
@@ -230,7 +230,7 @@ router.post('/payment/create', requireProfile, async (req, res) => {
         });
 
         if (!session.paymentSessionId) {
-            return res.status(500).json({ message: 'Could not start payment' });
+            return res.status(503).json({ message: 'Could not start payment session', fallbackToSimulate: true });
         }
 
         res.json({
@@ -240,13 +240,13 @@ router.post('/payment/create', requireProfile, async (req, res) => {
         });
     } catch (err) {
         console.error('Cashfree order create error:', err.response?.data || err.message);
-        res.status(500).json({ message: err.response?.data?.message || 'Could not initiate payment' });
+        const errMsg = err.response?.data?.message || err.message || 'Payment authentication failed';
+        res.status(503).json({ message: errMsg, fallbackToSimulate: true });
     }
 });
 
-// POST /api/orders/payment/simulate — TEMP stand-in when Cashfree keys are not configured.
+// POST /api/orders/payment/simulate — TEMP stand-in or fallback when Cashfree keys fail.
 router.post('/payment/simulate', requireProfile, upload.array('files', 10), async (req, res) => {
-    if (paymentGatewayReady()) return res.status(400).json({ message: 'Payment gateway is configured — use the real checkout.' });
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: 'Please upload at least one file to continue.' });

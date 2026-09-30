@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import Toast from '../../components/Toast';
 import { adminApi } from '../../lib/adminHelpers';
-
-const inputCls = 'w-full rounded-[10px] border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none';
-const labelCls = 'mb-4 flex flex-col gap-1.5 text-sm font-medium text-gray-700';
+import '../../styles/admin-effects.css';
 
 export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -45,11 +43,15 @@ export default function Settings() {
   }
 
   return (
-    <div>
-      <div className="max-w-[560px] rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
-        <h2 className="mb-[1.1rem] text-base font-bold text-gray-900">Account Settings</h2>
-        <form onSubmit={handleSubmit}>
-          <label className={labelCls}>
+    <div className="max-w-xl space-y-6">
+      <div className="admin-card">
+        <div className="border-b border-slate-100 pb-4">
+          <h3 className="text-lg font-black text-slate-900">Security & Account Settings</h3>
+          <p className="text-xs text-slate-500 font-medium">Update your shop admin password and security credentials</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+          <label className="block space-y-1.5 text-xs font-bold text-slate-700">
             <span>Current Password</span>
             <input
               type="password"
@@ -57,10 +59,10 @@ export default function Settings() {
               required
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className={inputCls}
+              className="admin-input"
             />
           </label>
-          <label className={labelCls}>
+          <label className="block space-y-1.5 text-xs font-bold text-slate-700">
             <span>New Password</span>
             <input
               type="password"
@@ -69,10 +71,10 @@ export default function Settings() {
               required
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className={inputCls}
+              className="admin-input"
             />
           </label>
-          <label className={labelCls}>
+          <label className="block space-y-1.5 text-xs font-bold text-slate-700">
             <span>Confirm New Password</span>
             <input
               type="password"
@@ -81,16 +83,23 @@ export default function Settings() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className={inputCls}
+              className="admin-input"
             />
           </label>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-full bg-blue-500 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Update Password
-          </button>
+
+          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs text-blue-900 font-medium">
+            🔒 Password requirement: Minimum 8 characters. Must contain at least one number or special character.
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="admin-btn-primary"
+            >
+              {submitting ? 'Updating Password…' : 'Update Password'}
+            </button>
+          </div>
         </form>
       </div>
       <Toast toast={toast} />

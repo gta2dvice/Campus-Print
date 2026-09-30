@@ -16,18 +16,45 @@ function withTimeout(promise, ms) {
     });
 }
 
-async function detectPdfPages(buffer) {
-    const parser = new PDFParse({ data: buffer });
+function extractPdfPagesFromBuffer(buffer) {
     try {
-        const info = await withTimeout(parser.getInfo(), DETECT_TIMEOUT_MS);
-        const total = Number(info.total);
-        if (!total || total < 1) return { pages: 1, estimated: true };
-        return { pages: total, estimated: false };
-    } finally {
-        // Best-effort cleanup — if getInfo() never settled, destroy() may hang too,
-        // so don't let it block the response.
-        parser.destroy().catch(() => {});
+        const text = buffer.toString('latin1');
+        const counts = [...text.matchAll(/\/Count\s+(\d+)/gi)]
+            .map(m => parseInt(m[1], 10))
+            .filter(c => !isNaN(c) && c > 0);
+        if (counts.length > 0) {
+            return Math.max(...counts);
+        }
+        const pageMatches = [...text.matchAll(/\/Type\s*\/Page\b/gi)];
+        if (pageMatches.length > 0) {
+            return pageMatches.length;
+        }
+    } catch {
+        // ignore
     }
+    return null;
+}
+
+async function detectPdfPages(buffer) {
+    try {
+        const parser = new PDFParse({ data: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) });
+        try {
+            const info = await withTimeout(parser.getInfo(), DETECT_TIMEOUT_MS);
+            const total = Number(info?.total);
+            if (total && total >= 1) return { pages: total, estimated: false };
+        } finally {
+            parser.destroy().catch(() => {});
+        }
+    } catch (e) {
+        // Continue to binary fallback
+    }
+
+    const binaryCount = extractPdfPagesFromBuffer(buffer);
+    if (binaryCount && binaryCount >= 1) {
+        return { pages: binaryCount, estimated: false };
+    }
+
+    return { pages: 1, estimated: true };
 }
 
 async function detectDocxPages(buffer) {

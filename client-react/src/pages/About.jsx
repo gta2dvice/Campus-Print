@@ -121,6 +121,7 @@ export default function About() {
             </article>
 
           </div>
+        </section>
         <Footer />
       </div>
     </>

@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import Toast from '../../components/Toast';
 import { adminApi } from '../../lib/adminHelpers';
-
-const inputCls = 'w-full rounded-[10px] border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none';
-const labelCls = 'mb-1.5 flex flex-col gap-1.5 text-sm font-medium text-gray-700';
+import '../../styles/admin-effects.css';
 
 export default function ShopProfile() {
   const [form, setForm] = useState({
@@ -73,7 +71,7 @@ export default function ShopProfile() {
         showToast(data.message || 'Save failed', 'error');
         return;
       }
-      showToast('Shop profile updated.');
+      showToast('Shop profile updated successfully.');
     } catch {
       showToast('Connection error. Please try again.', 'error');
     } finally {
@@ -82,54 +80,81 @@ export default function ShopProfile() {
   }
 
   return (
-    <div>
-      <div className="max-w-[560px] rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
-        <h2 className="mb-[1.1rem] text-base font-bold text-gray-900">Shop Profile</h2>
+    <div className="max-w-3xl space-y-6">
+      <div className="admin-card">
+        <div className="border-b border-slate-100 pb-4">
+          <h3 className="text-lg font-black text-slate-900">Shop Profile & Operating Hours</h3>
+          <p className="text-xs text-slate-500 font-medium">Manage shop details, campus pickup location, and live store availability</p>
+        </div>
+
         {loading ? (
-          <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+          <div className="py-12 text-center text-xs font-semibold text-slate-400">Loading shop details...</div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <label className={labelCls}>
-              <span>Shop Name</span>
-              <input type="text" value={form.shop_name} onChange={(e) => update('shop_name', e.target.value)} className={inputCls} />
-            </label>
-            <label className={labelCls}>
-              <span>Owner Name</span>
-              <input type="text" value={form.owner_name} onChange={(e) => update('owner_name', e.target.value)} className={inputCls} />
-            </label>
-            <label className={labelCls}>
-              <span>Phone</span>
-              <input type="text" value={form.phone} onChange={(e) => update('phone', e.target.value)} className={inputCls} />
-            </label>
-            <label className={labelCls}>
-              <span>Email</span>
-              <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} className={inputCls} />
-            </label>
-            <label className={labelCls}>
-              <span>Address</span>
-              <textarea rows={2} value={form.address} onChange={(e) => update('address', e.target.value)} className={inputCls} />
-            </label>
-            <div className="mb-4 flex gap-4">
-              <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium text-gray-700">
-                <span>Opens At</span>
-                <input type="time" value={form.opens_at} onChange={(e) => update('opens_at', e.target.value)} className={inputCls} />
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <label className="block space-y-1.5 text-xs font-bold text-slate-700">
+                <span>Shop Name</span>
+                <input type="text" value={form.shop_name} onChange={(e) => update('shop_name', e.target.value)} className="admin-input" />
               </label>
-              <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium text-gray-700">
-                <span>Closes At</span>
-                <input type="time" value={form.closes_at} onChange={(e) => update('closes_at', e.target.value)} className={inputCls} />
+              <label className="block space-y-1.5 text-xs font-bold text-slate-700">
+                <span>Owner Name</span>
+                <input type="text" value={form.owner_name} onChange={(e) => update('owner_name', e.target.value)} className="admin-input" />
               </label>
             </div>
-            <label className="mb-4 flex items-center gap-2 text-sm font-medium text-gray-700">
-              <input type="checkbox" checked={form.is_open} onChange={(e) => update('is_open', e.target.checked)} />
-              Shop currently open for orders
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <label className="block space-y-1.5 text-xs font-bold text-slate-700">
+                <span>Phone Number</span>
+                <input type="text" value={form.phone} onChange={(e) => update('phone', e.target.value)} className="admin-input" />
+              </label>
+              <label className="block space-y-1.5 text-xs font-bold text-slate-700">
+                <span>Contact Email</span>
+                <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} className="admin-input" />
+              </label>
+            </div>
+
+            <label className="block space-y-1.5 text-xs font-bold text-slate-700">
+              <span>Campus Pickup Location / Address</span>
+              <textarea rows={2} value={form.address} onChange={(e) => update('address', e.target.value)} className="admin-input" />
             </label>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-full bg-blue-500 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Save Changes
-            </button>
+
+            <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+              <label className="block space-y-1.5 text-xs font-bold text-slate-700">
+                <span>Opening Time</span>
+                <input type="time" value={form.opens_at} onChange={(e) => update('opens_at', e.target.value)} className="admin-date-input w-full" />
+              </label>
+              <label className="block space-y-1.5 text-xs font-bold text-slate-700">
+                <span>Closing Time</span>
+                <input type="time" value={form.closes_at} onChange={(e) => update('closes_at', e.target.value)} className="admin-date-input w-full" />
+              </label>
+            </div>
+
+            {/* Live Store Switch */}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <div>
+                <div className="text-xs font-extrabold text-slate-900">Store Acceptance Status</div>
+                <div className="text-[0.68rem] text-slate-500 font-medium">Toggle whether your shop accepts new student print orders right now</div>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={form.is_open}
+                  onChange={(e) => update('is_open', e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-focus:outline-none" />
+              </label>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={saving}
+                className="admin-btn-primary"
+              >
+                {saving ? 'Saving Changes…' : 'Save Profile Changes'}
+              </button>
+            </div>
           </form>
         )}
       </div>

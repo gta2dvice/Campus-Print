@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardSidebar from '../components/DashboardSidebar';
-import Footer from '../components/Footer';
 import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
@@ -11,8 +10,21 @@ import '../styles/dashboard.css';
 
 const ALLOWED_TYPES = [
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
 ];
-<<<<<<< HEAD
+const ALLOWED_EXTENSIONS = /\.(pdf|docx|doc|png|jpg|jpeg|webp)$/i;
+
+function isFileSupported(file) {
+  if (!file) return false;
+  if (file.type && ALLOWED_TYPES.includes(file.type.toLowerCase())) return true;
+  if (file.name && ALLOWED_EXTENSIONS.test(file.name)) return true;
+  return false;
+}
 const LOCATIONS = [
   { id: 'main-gate', name: 'Main Gate', sub: 'Campus Gate 1 pickup', icon: <path d="M3 21V3h18v18M3 12h18M12 3v18" /> },
   { id: 'red-canteen', name: 'Red Canteen', sub: 'Red Canteen pickup', icon: <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" /> },
@@ -32,8 +44,6 @@ const OFFERED_BY_TIME = {
 const TIME_SLOTS = ['9:25 AM', '11:15 AM', '1:15 PM', '2:05 PM', '4:00 PM'];
 const SLOT_CUTOFF_MINUTES = 5;
 const LIVE_SLOT_AVAILABILITY = false;
-=======
->>>>>>> 32df33e (upload sys)
 
 // Campus Print only operates in India, so slot cutoffs always use IST — regardless of the
 // student's device timezone. Comparing minutes-since-midnight avoids local-Date pitfalls.
@@ -139,27 +149,61 @@ export default function NewOrder() {
     }
   }, []);
 
-  function addFiles(newFiles) {
+  async function countPdfPagesClient(file) {
+    if (file.type !== 'application/pdf') return null;
+    try {
+      const buffer = await file.arrayBuffer();
+      const text = new TextDecoder('latin1').decode(new Uint8Array(buffer));
+      const counts = [...text.matchAll(/\/Count\s+(\d+)/gi)]
+        .map((m) => parseInt(m[1], 10))
+        .filter((c) => !isNaN(c) && c > 0);
+      if (counts.length > 0) {
+        return Math.max(...counts);
+      }
+      const pageMatches = [...text.matchAll(/\/Type\s*\/Page\b/gi)];
+      if (pageMatches.length > 0) return pageMatches.length;
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  async function addFiles(newFiles) {
     const accepted = [];
-    newFiles.forEach((file) => {
+    for (const file of newFiles) {
       if (files.length + accepted.length >= 10) {
         showToast('Max 10 files allowed.', 'error');
-        return;
+        break;
       }
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        showToast(`${file.name}: unsupported type.`, 'error');
-        return;
+      if (!isFileSupported(file)) {
+        showToast(`${file.name}: unsupported type. Supported: PDF, DOCX, DOC, PNG, JPG.`, 'error');
+        continue;
       }
-      accepted.push({ key: ++fileKeySeq, file, pages: null, estimated: false, copies: 1 });
-    });
+      let clientPages = null;
+      if (file.type?.startsWith('image/') || /\.(png|jpg|jpeg|webp)$/i.test(file.name)) {
+        clientPages = 1;
+      } else {
+        clientPages = await countPdfPagesClient(file);
+      }
+      accepted.push({
+        key: ++fileKeySeq,
+        file,
+        pages: clientPages || null,
+        estimated: false,
+        copies: 1
+      });
+    }
     if (accepted.length === 0) return;
     setFiles((prev) => [...prev, ...accepted]);
     detectPagesFor(accepted);
   }
 
   async function detectPagesFor(newlyAdded) {
+    const needDetection = newlyAdded.filter((n) => n.pages === null);
+    if (needDetection.length === 0) return;
+
     const formData = new FormData();
-    newlyAdded.forEach((entry) => formData.append('files', entry.file));
+    needDetection.forEach((entry) => formData.append('files', entry.file));
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
@@ -171,24 +215,29 @@ export default function NewOrder() {
       if (!res.ok) throw new Error('detect-pages failed');
       const data = await res.json();
       const results = data.files;
-      const resultsComplete = Array.isArray(results)
-        && results.length === newlyAdded.length
-        && results.every((result) => result && typeof result.pages === 'number' && result.pages >= 1);
-      if (!resultsComplete) throw new Error('incomplete detect-pages results');
-      setFiles((prev) => prev.map((entry) => {
-        const idx = newlyAdded.findIndex((n) => n.key === entry.key);
-        if (idx === -1) return entry;
-        const result = results[idx];
-        return { ...entry, pages: result.pages, estimated: !!result.estimated };
-      }));
+      if (Array.isArray(results)) {
+        setFiles((prev) => prev.map((entry) => {
+          const idx = needDetection.findIndex((n) => n.key === entry.key);
+          if (idx === -1) return entry;
+          const result = results[idx];
+          if (result && typeof result.pages === 'number' && result.pages >= 1) {
+            return { ...entry, pages: result.pages, estimated: !!result.estimated };
+          }
+          return { ...entry, pages: entry.pages || 1, estimated: true };
+        }));
+      }
     } catch {
       setFiles((prev) => prev.map((entry) =>
-        newlyAdded.some((n) => n.key === entry.key) ? { ...entry, pages: 1, estimated: true } : entry
+        needDetection.some((n) => n.key === entry.key) ? { ...entry, pages: entry.pages || 1, estimated: true } : entry
       ));
-      showToast('Could not auto-detect page count for one or more files — using an estimate.', 'error');
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  function updateFilePages(key, val) {
+    const pages = Math.max(1, parseInt(val, 10) || 1);
+    setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, pages, estimated: false } : f)));
   }
 
   function removeFile(key) {
@@ -260,17 +309,16 @@ export default function NewOrder() {
 
   async function loadTimeSlots() {
     setSlotsLoading(true);
+    let slotsData = [];
     try {
       const res = await fetch('/api/orders/slots', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setSlots(data.slots || []);
+        slotsData = data.slots || [];
       } else {
         showToast('Could not load available slots.', 'error');
-        setSlots([]);
       }
     } catch {
-<<<<<<< HEAD
       // fall through to local cutoff
     }
     if (!slotsData.length) {
@@ -280,11 +328,6 @@ export default function NewOrder() {
       }));
     }
     setSlots(slotsData);
-=======
-      showToast('Connection error while loading slots.', 'error');
-      setSlots([]);
-    }
->>>>>>> 32df33e (upload sys)
     setSlotsLoading(false);
   }
 
@@ -385,15 +428,17 @@ export default function NewOrder() {
         body: JSON.stringify({ totalPrice: p.total }),
       });
 
-      if (createRes.status === 503) {
+      const createData = await createRes.json().catch(() => ({}));
+
+      if (createRes.status === 503 || createData.fallbackToSimulate) {
+        showToast('Payment gateway unavailable. Using test checkout...', 'info');
         await runSimulatedPayment();
         return;
       }
 
-      const createData = await createRes.json();
       if (!createRes.ok) {
-        showToast(createData.message || 'Could not start payment.', 'error');
-        setPaying(false);
+        showToast(createData.message || 'Could not start payment session. Using test checkout...', 'info');
+        await runSimulatedPayment();
         return;
       }
 
@@ -627,7 +672,6 @@ export default function NewOrder() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
 
       {/* Booking flow: Time → Location → Review */}
@@ -657,50 +701,7 @@ export default function NewOrder() {
             </button>
           </div>
 
-<<<<<<< HEAD
           {/* Step 1: Time slots */}
-=======
-          {/* Step 1: Location */}
-          <section className="cp-step-view" hidden={step !== 'location'}>
-            <div className="cp-view-header">
-              <span className="location-tag">📍 Collection Point</span>
-              <h2 className="location-title" style={{ marginTop: '0.5rem' }}>Where should we deliver your prints?</h2>
-              <p className="location-subtitle">Choose your preferred collection point on campus.</p>
-            </div>
-            <div className="cp-cards-grid">
-              {config?.locations?.map((loc) => {
-                const icons = {
-                  'main-gate': <path d="M3 21V3h18v18M3 12h18M12 3v18" />,
-                  'academic-block': <path d="M3 21h18M4 18h16M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 3L2 9h20L12 3z" />,
-                  'hostel-gate': (
-                    <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>
-                  ),
-                };
-                return (
-                  <button
-                    key={loc.id}
-                    type="button"
-                    className={`cp-loc-card${loc.id === selectedLocationId ? ' is-selected' : ''}`}
-                    onClick={() => { setSelectedLocationId(loc.id); setSelectedLocationName(loc.name); }}
-                  >
-                    <div className="cp-card-icon">
-                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icons[loc.id] || <circle cx="12" cy="12" r="10" />}</svg>
-                    </div>
-                    <h3 className="cp-card-title">{loc.name}</h3>
-                    <p className="cp-card-sub">{loc.hint}</p>
-                  </button>
-                );
-              }) || <p style={{ textAlign: 'center', width: '100%' }}>Loading locations...</p>}
-            </div>
-            <div className="cp-step-footer">
-              <button type="button" className="btn btn-primary" disabled={!selectedLocationId} onClick={() => goToStep('slot')}>
-                Continue to Time Slot <span className="arrow-icon">→</span>
-              </button>
-            </div>
-          </section>
-
-          {/* Step 2: Time slots */}
->>>>>>> 32df33e (upload sys)
           <section className="cp-step-view" hidden={step !== 'slot'}>
             <div className="cp-view-header">
               <span className="location-tag">🕒 Pickup Schedule</span>

@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import PageBackground from '../../components/PageBackground';
+import LogoLink from '../../components/LogoLink';
+import useBodyClass from '../../lib/useBodyClass';
+import useDocumentTitle from '../../lib/useDocumentTitle';
+import '../../styles/style.css';
 
 export default function Login() {
   const navigate = useNavigate();
+  useBodyClass('auth-page');
+  useDocumentTitle('Shop Admin Login – Print Campus');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,41 +32,75 @@ export default function Login() {
       if (res.ok) {
         navigate('/admin');
       } else {
-        setError(data.message || 'Login failed');
+        setError(data.message || 'Invalid email or password');
         setSubmitting(false);
       }
     } catch {
-      setError('Network error. Please try again.');
+      setError('Connection error. Please check your network and try again.');
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(to_bottom,#f3f7fb_0%,#eaf1f7_100%)] p-6">
-      <div className="w-full max-w-[400px]">
-        <div className="rounded-[24px] border border-white/60 bg-white/85 p-11 px-10 text-center shadow-[0_20px_60px_rgba(59,130,246,0.12),0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl">
-          <h1 className="mb-1.5 text-[1.6rem] font-extrabold tracking-[0.08em] text-gray-900">CAMPUS PRINT</h1>
-          <p className="mb-8 text-[0.85rem] font-semibold uppercase tracking-[0.06em] text-blue-500">Admin Panel</p>
+    <div className="auth-container">
+      <PageBackground />
+      
+      <div style={{ width: '100%', maxWidth: 460, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
+        <Link
+          to="/"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            color: '#93c5fd',
+            background: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            textDecoration: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Home
+        </Link>
+        <LogoLink />
+      </div>
 
-          <form className="text-left" onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="adminEmail" className="mb-1.5 block text-sm font-medium text-gray-700">Gmail</label>
+      <div className="auth-card" style={{ maxWidth: 460 }}>
+        <div className="auth-header">
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#eff6ff', color: '#2563eb', padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
+            <span>🏪 Shop Admin</span>
+          </div>
+          <h1>Sign In to Admin Portal</h1>
+          <p>Access store management, live print queues &amp; shop analytics</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="adminEmail">Email Address</label>
+            <input
+              type="email"
+              id="adminEmail"
+              name="email"
+              placeholder="e.g. admin@campusprint.com"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="adminPassword">Password</label>
+            <div style={{ position: 'relative' }}>
               <input
-                type="email"
-                id="adminEmail"
-                name="email"
-                placeholder="you@gmail.com"
-                required
-                autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-[10px] border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="adminPassword" className="mb-1.5 block text-sm font-medium text-gray-700">Pass</label>
-              <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 id="adminPassword"
                 name="password"
                 placeholder="••••••••"
@@ -65,22 +108,41 @@ export default function Login() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-[10px] border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                style={{ paddingRight: '2.5rem' }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '0.85rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  color: '#64748b',
+                  padding: 0
+                }}
+                title={showPassword ? 'Hide Password' : 'Show Password'}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
             </div>
+          </div>
 
-            {error && <p className="mb-3 text-sm font-medium text-red-500">{error}</p>}
+          {error && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.875rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-blue-500 px-6 py-3 text-sm font-semibold tracking-[0.05em] text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] transition hover:-translate-y-px hover:bg-blue-600 hover:shadow-[0_6px_16px_rgba(59,130,246,0.4)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              AUTH
-              <span>→</span>
-            </button>
-          </form>
-        </div>
+          <button type="submit" className="auth-submit" disabled={submitting}>
+            {submitting ? 'Authenticating…' : 'Sign In to Shop Admin →'}
+          </button>
+        </form>
       </div>
     </div>
   );

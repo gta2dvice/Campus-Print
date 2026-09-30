@@ -4,6 +4,7 @@ import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
 import useDocumentTitle from '../lib/useDocumentTitle';
+import PageBackground from '../components/PageBackground';
 import LogoLink from '../components/LogoLink';
 import '../styles/style.css';
 
@@ -20,6 +21,14 @@ export default function EditProfile() {
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    const handleBack = () => {
+        if (window.history.length > 1) {
+            navigate(-1);
+        } else {
+            navigate('/dashboard');
+        }
+    };
 
     useEffect(() => {
         async function loadProfile() {
@@ -72,8 +81,37 @@ export default function EditProfile() {
     if (loading) return null;
 
     return (
-        <div className="auth-container" style={{ position: 'relative' }}>
-            <LogoLink />
+        <div className="auth-container">
+            <PageBackground />
+            
+            <div style={{ width: '100%', maxWidth: 480, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
+                <button
+                    type="button"
+                    onClick={handleBack}
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        color: '#93c5fd',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '8px',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Back
+                </button>
+                <LogoLink />
+            </div>
+
             <div className="auth-card">
                 <div className="auth-header">
                     <h1 style={{ fontSize: '1.5rem' }}>Edit Profile</h1>

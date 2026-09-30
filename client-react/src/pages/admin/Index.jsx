@@ -23,28 +23,32 @@ function Icon({ name, className = 'h-5 w-5' }) {
 }
 
 const ICON_BG = {
-  blue: 'bg-blue-500/[0.12] text-blue-500',
-  amber: 'bg-amber-500/[0.12] text-amber-600',
-  purple: 'bg-purple-500/[0.12] text-purple-600',
-  green: 'bg-emerald-500/[0.12] text-emerald-600',
+  blue: 'bg-blue-50 text-blue-600 border border-blue-200',
+  amber: 'bg-amber-50 text-amber-600 border border-amber-200',
+  purple: 'bg-purple-50 text-purple-600 border border-purple-200',
+  green: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
 };
 
 const SUB_COLOR = {
-  blue: 'text-blue-500',
-  amber: 'text-amber-600',
-  purple: 'text-purple-600',
-  green: 'text-emerald-600',
+  blue: 'text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200',
+  amber: 'text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200',
+  purple: 'text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200',
+  green: 'text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200',
 };
 
 function StatCard({ icon, color, number, label, sub }) {
   return (
-    <div className="rounded-[18px] border border-gray-300/50 bg-white/90 p-5 px-[1.4rem] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md transition hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_2px_4px_rgba(0,0,0,0.04)]">
-      <div className={`mb-[0.9rem] flex h-[42px] w-[42px] items-center justify-center rounded-xl ${ICON_BG[color]}`}>
-        <Icon name={icon} />
+    <div className="admin-stat-card">
+      <div className="flex items-center justify-between gap-2">
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${ICON_BG[color]}`}>
+          <Icon name={icon} className="h-5 w-5" />
+        </div>
+        <span className={`text-[0.68rem] font-extrabold whitespace-nowrap ${SUB_COLOR[color]}`}>{sub}</span>
       </div>
-      <div className="text-[1.55rem] font-extrabold tracking-tight text-gray-900">{number}</div>
-      <div className="mt-1 text-[0.82rem] font-medium text-gray-600">{label}</div>
-      <div className={`mt-[0.35rem] text-[0.72rem] font-semibold ${SUB_COLOR[color]}`}>{sub}</div>
+      <div className="mt-3">
+        <div className="text-2xl font-black tracking-tight text-slate-900 leading-none">{number}</div>
+        <div className="mt-1 text-xs font-semibold text-slate-500 truncate">{label}</div>
+      </div>
     </div>
   );
 }
@@ -88,71 +92,112 @@ export default function Index() {
     return () => { cancelled = true; clearInterval(timer); };
   }, []);
 
-  const dateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  const dateLabel = new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   const c = data?.statusCounts;
 
-  const attentionItems = [];
-  if (c) {
-    if (c.pending > 0) attentionItems.push({ label: 'Pending Orders', count: c.pending, href: '/admin/orders?status=pending' });
-    if (c.ready > 0) attentionItems.push({ label: 'Ready for Pickup — needs collection', count: c.ready, href: '/admin/orders?status=ready' });
-  }
-
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header Banner - Clean White Card */}
+      <div className="admin-welcome-banner">
         <div>
-          <h2 className="text-[1.3rem] font-extrabold tracking-tight text-gray-900">Welcome back, {welcomeName}! 👋</h2>
-          <p className="mt-1 text-[0.88rem] text-gray-600">Here's a quick overview of your shop today.</p>
+          <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
+            <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+            Live Dashboard Overview
+          </div>
+          <h2 className="mt-2 text-xl md:text-2xl font-black tracking-tight text-slate-900">Welcome back, {welcomeName}! 👋</h2>
+          <p className="mt-1 text-xs font-medium text-slate-500">Live order queue, print status, and store revenue analytics.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-[0.6rem] text-[0.82rem] font-semibold text-gray-900 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]">
-          <svg className="h-[15px] w-[15px] text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
+          <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
           <span>{dateLabel}</span>
         </div>
       </div>
 
+      {/* Pending Alert Banner */}
+      {c && c.pending > 0 && (
+        <div className="admin-alert-banner">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-500 text-slate-950 font-black shadow-sm">
+              <Icon name="clock" className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-black text-amber-950 truncate">
+                {c.pending} new pending print {c.pending === 1 ? 'order' : 'orders'} requiring confirmation!
+              </div>
+              <div className="text-xs font-medium text-amber-800 truncate">Review specs and confirm to start printing.</div>
+            </div>
+          </div>
+          <Link
+            to="/admin/orders?status=pending"
+            className="admin-btn-primary bg-amber-600 hover:bg-amber-700 text-white flex-shrink-0"
+          >
+            Review Pending Orders →
+          </Link>
+        </div>
+      )}
+
       {error && !data ? (
-        <p className="py-6 text-center text-sm text-red-500">Couldn't load dashboard. {error}</p>
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm font-semibold text-rose-600">
+          Couldn't load dashboard data. {error}
+        </div>
       ) : !data ? (
-        <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+        <div className="py-12 text-center text-sm font-medium text-slate-400">Loading live store dashboard...</div>
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4">
+          {/* Stat Cards Grid */}
+          <div className="admin-stats-grid">
             <StatCard icon="doc" color="blue" number={data.totalOrders} label="Total Orders" sub="This Month" />
             <StatCard icon="clock" color="amber" number={c.pending} label="Pending Orders" sub="Needs Action" />
-            <StatCard icon="printer" color="purple" number={c.accepted + c.printing} label="Orders in Progress" sub="Accepted + Printing" />
+            <StatCard icon="printer" color="purple" number={c.accepted + c.printing} label="In Progress" sub="Accepted + Printing" />
             <StatCard icon="checkcircle" color="green" number={c.completed} label="Completed Orders" sub="This Month" />
             <StatCard icon="wallet" color="green" number={fmtMoney(data.earningsToday)} label="Today's Earnings" sub={`${data.ordersToday} Orders Today`} />
           </div>
 
-          <div className="mb-5 grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_340px]">
-            <div className="rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
-              <div className="mb-[1.1rem] flex items-center justify-between">
-                <h2 className="text-base font-bold text-gray-900">Recent Orders</h2>
-                <Link to="/admin/orders" className="text-[0.82rem] font-semibold text-blue-500 hover:text-blue-600 hover:underline">View All Orders →</Link>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 items-start">
+            {/* Recent Orders List */}
+            <div className="admin-card lg:col-span-2">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Recent Orders</h3>
+                  <p className="text-xs text-slate-500">Incoming print requests</p>
+                </div>
+                <Link to="/admin/orders" className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline">
+                  View All Orders →
+                </Link>
               </div>
+
               {!data.recentOrders || data.recentOrders.length === 0 ? (
-                <div className="py-6 text-center text-sm text-gray-400">No orders yet.</div>
+                <div className="py-8 text-center text-xs font-medium text-slate-400">No orders received yet.</div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-[0.85rem]">
+                <div className="admin-table-container">
+                  <table className="admin-table">
                     <thead>
                       <tr>
-                        {['Order ID', 'Customer', 'Pickup', 'Details', 'Status', 'Amount'].map((h) => (
-                          <th key={h} className="whitespace-nowrap border-b border-gray-200 px-3 py-2.5 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
-                        ))}
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Pickup</th>
+                        <th>Specs</th>
+                        <th>Status</th>
+                        <th className="text-right">Amount</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.recentOrders.map((o) => (
-                        <tr key={o.id} className="transition hover:bg-blue-500/[0.03]">
-                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">#{String(o.id).padStart(4, '0')}</td>
-                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.customer_email}</td>
-                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtPickup(o)}</td>
-                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.color_option === 'bw' ? 'B&W' : 'Color'} · {o.paper_size} · {o.copies}x</td>
-                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]"><StatusBadge status={o.status} /></td>
-                          <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] font-bold text-gray-900">{fmtMoney(o.total_price)}</td>
+                        <tr key={o.id}>
+                          <td className="font-extrabold text-slate-900">#{String(o.id).padStart(4, '0')}</td>
+                          <td className="text-slate-800 font-medium">{o.customer_email}</td>
+                          <td className="text-slate-500 font-medium">{fmtPickup(o)}</td>
+                          <td>
+                            <span className="inline-block rounded bg-slate-100 px-2 py-0.5 text-[0.7rem] font-bold text-slate-700">
+                              {o.color_option === 'bw' ? 'B&W' : 'Color'} · {o.paper_size} · {o.copies}x
+                            </span>
+                          </td>
+                          <td>
+                            <StatusBadge status={o.status} />
+                          </td>
+                          <td className="text-right font-black text-slate-900">{fmtMoney(o.total_price)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -161,79 +206,80 @@ export default function Index() {
               )}
             </div>
 
-            <div className="rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
-              <h2 className="text-base font-bold text-gray-900">Today's Earnings</h2>
-              <div className="my-1 mb-[1.1rem] text-[1.9rem] font-extrabold tracking-tight text-blue-500">{fmtMoney(earnings?.today?.amount)}</div>
-              <div className="flex items-center justify-between border-t border-[#f0f4f8] py-[0.65rem] text-[0.85rem]">
-                <span className="text-gray-600">Orders Completed Today</span>
-                <span className="font-bold text-gray-900">{earnings?.today?.count}</span>
-              </div>
-              <div className="flex items-center justify-between border-t border-[#f0f4f8] py-[0.65rem] text-[0.85rem]">
-                <span className="text-gray-600">Yesterday</span>
-                <span className="font-bold text-gray-900">{fmtMoney(earnings?.yesterday?.amount)}</span>
-              </div>
-              <div className="flex items-center justify-between border-t border-[#f0f4f8] py-[0.65rem] text-[0.85rem]">
-                <span className="text-gray-600">Total Earnings</span>
-                <span className="font-bold text-gray-900">{fmtMoney(earnings?.total?.amount)}</span>
-              </div>
-              <Link to="/admin/earnings" className="mt-[1.1rem] block text-[0.82rem] font-semibold text-blue-500 hover:text-blue-600 hover:underline">View Earnings →</Link>
-            </div>
-          </div>
+            {/* Side Column: Revenue Snapshot & Quick Links */}
+            <div className="space-y-6">
+              <div className="admin-card">
+                <h3 className="text-base font-extrabold text-slate-900">Revenue Snapshot</h3>
+                <div className="mt-3 text-3xl font-black tracking-tight text-blue-600">{fmtMoney(earnings?.today?.amount)}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-500">Earned Today ({earnings?.today?.count || 0} orders)</div>
 
-          <div className="mb-5 rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
-            <h2 className="mb-[0.9rem] text-base font-bold text-gray-900">Needs Attention</h2>
-            {attentionItems.length === 0 ? (
-              <div className="flex items-center gap-2.5 p-4 text-[0.88rem] font-semibold text-emerald-600">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                You're all caught up.
-              </div>
-            ) : (
-              attentionItems.map((i) => (
-                <Link key={i.label} to={i.href} className="mb-2 flex items-center justify-between rounded-xl bg-amber-500/[0.06] px-[0.9rem] py-3 no-underline">
-                  <span className="text-[0.85rem] font-semibold text-gray-900">{i.label}</span>
-                  <span className="rounded-full bg-amber-500 px-[0.6rem] py-[0.15rem] text-[0.75rem] font-bold text-white">{i.count}</span>
+                <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-4 text-xs font-semibold">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Yesterday</span>
+                    <span className="text-slate-900">{fmtMoney(earnings?.yesterday?.amount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Total Lifetime</span>
+                    <span className="text-slate-900">{fmtMoney(earnings?.total?.amount)}</span>
+                  </div>
+                </div>
+
+                <Link
+                  to="/admin/earnings"
+                  className="mt-4 block rounded-xl bg-slate-100 py-2.5 text-center text-xs font-bold text-slate-700 transition hover:bg-slate-200 text-decoration-none"
+                >
+                  Full Financial Analytics →
                 </Link>
-              ))
-            )}
-          </div>
+              </div>
 
-          <div className="rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
-            <h2 className="mb-[0.9rem] text-base font-bold text-gray-900">Quick Actions</h2>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[0.9rem]">
-              <Link to="/admin/orders?status=pending" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:-translate-y-px hover:border-blue-500 hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]">
-                <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] bg-amber-500/[0.12] text-amber-600"><Icon name="clock" className="h-[18px] w-[18px]" /></div>
-                <div className="flex-1">
-                  <div className="text-[0.85rem] font-semibold text-gray-900">Pending Orders</div>
-                  <div className="text-[0.72rem] text-gray-400">{c.pending} orders</div>
+              {/* Quick Actions */}
+              <div className="admin-card">
+                <h3 className="mb-3 text-base font-extrabold text-slate-900">Quick Shortcuts</h3>
+                <div className="flex flex-col gap-2.5">
+                  <Link
+                    to="/admin/orders?status=pending"
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-decoration-none transition hover:border-blue-300 hover:bg-blue-50/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 font-bold">
+                        <Icon name="clock" className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">Pending Queue</span>
+                    </div>
+                    <span className="rounded-full bg-amber-500/10 border border-amber-300/40 px-2 py-0.5 text-[0.7rem] font-extrabold text-amber-700">
+                      {c.pending} orders
+                    </span>
+                  </Link>
+
+                  <Link
+                    to="/admin/orders?status=ready"
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-decoration-none transition hover:border-blue-300 hover:bg-blue-50/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 font-bold">
+                        <Icon name="bag" className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">Ready for Pickup</span>
+                    </div>
+                    <span className="rounded-full bg-emerald-500/10 border border-emerald-300/40 px-2 py-0.5 text-[0.7rem] font-extrabold text-emerald-700">
+                      {c.ready} orders
+                    </span>
+                  </Link>
+
+                  <Link
+                    to="/admin/shop-profile"
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-decoration-none transition hover:border-blue-300 hover:bg-blue-50/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 font-bold">
+                        <Icon name="shop" className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">Shop Hours & Info</span>
+                    </div>
+                    <span className="text-slate-400 font-bold">→</span>
+                  </Link>
                 </div>
-                <svg className="h-[15px] w-[15px] text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </Link>
-              <Link to="/admin/orders?status=ready" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:-translate-y-px hover:border-blue-500 hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]">
-                <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] bg-emerald-500/[0.12] text-emerald-600"><Icon name="bag" className="h-[18px] w-[18px]" /></div>
-                <div className="flex-1">
-                  <div className="text-[0.85rem] font-semibold text-gray-900">Ready for Pickup</div>
-                  <div className="text-[0.72rem] text-gray-400">{c.ready} orders</div>
-                </div>
-                <svg className="h-[15px] w-[15px] text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </Link>
-              <Link to="/admin/shop-profile" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:-translate-y-px hover:border-blue-500 hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]">
-                <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] bg-blue-500/[0.12] text-blue-500"><Icon name="shop" className="h-[18px] w-[18px]" /></div>
-                <div className="flex-1">
-                  <div className="text-[0.85rem] font-semibold text-gray-900">Shop Profile</div>
-                  <div className="text-[0.72rem] text-gray-400">Manage Shop</div>
-                </div>
-                <svg className="h-[15px] w-[15px] text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </Link>
-              <Link to="/admin/earnings" className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:-translate-y-px hover:border-blue-500 hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]">
-                <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] bg-purple-500/[0.12] text-purple-600"><Icon name="earnings" className="h-[18px] w-[18px]" /></div>
-                <div className="flex-1">
-                  <div className="text-[0.85rem] font-semibold text-gray-900">Earnings</div>
-                  <div className="text-[0.72rem] text-gray-400">View Details</div>
-                </div>
-                <svg className="h-[15px] w-[15px] text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </Link>
+              </div>
             </div>
           </div>
         </>

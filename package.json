@@ -11,6 +11,7 @@
     "init-db": "node server/initDb.js",
     "migrate-mysql": "node scripts/migrate-mysql-to-supabase.js",
     "cleanup-pdfs": "node -e \"require('./server/loadEnv'); require('./server/jobs/cleanupExpiredPdfs').cleanupExpiredPdfs().then(r => { console.log(r); process.exit(0); }).catch(e => { console.error(e); process.exit(1); })\"",
+    "postinstall": "npm --prefix client-react install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

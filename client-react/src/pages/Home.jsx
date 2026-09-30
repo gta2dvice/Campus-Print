@@ -46,23 +46,52 @@ export default function Home() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
+  async function countPdfPagesClient(file) {
+    if (file.type !== 'application/pdf') return null;
+    try {
+      const buffer = await file.arrayBuffer();
+      const text = new TextDecoder('latin1').decode(new Uint8Array(buffer));
+      const counts = [...text.matchAll(/\/Count\s+(\d+)/gi)]
+        .map((m) => parseInt(m[1], 10))
+        .filter((c) => !isNaN(c) && c > 0);
+      if (counts.length > 0) {
+        return Math.max(...counts);
+      }
+      const pageMatches = [...text.matchAll(/\/Type\s*\/Page\b/gi)];
+      if (pageMatches.length > 0) return pageMatches.length;
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
   async function addFiles(newFiles) {
     const accepted = [];
-    newFiles.forEach((file) => {
+    for (const file of newFiles) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         alert(`${file.name}: only PDF files are allowed.`);
-        return;
+        continue;
       }
-      accepted.push({ key: Math.random(), file, pages: null, estimated: false, copies: 1 });
-    });
+      const clientPages = await countPdfPagesClient(file);
+      accepted.push({
+        key: Math.random(),
+        file,
+        pages: clientPages || null,
+        estimated: false,
+        copies: 1
+      });
+    }
     if (accepted.length === 0) return;
     setFiles((prev) => [...prev, ...accepted]);
     detectPagesFor(accepted);
   }
 
   async function detectPagesFor(newlyAdded) {
+    const needDetection = newlyAdded.filter((n) => n.pages === null);
+    if (needDetection.length === 0) return;
+
     const formData = new FormData();
-    newlyAdded.forEach((entry) => formData.append('files', entry.file));
+    needDetection.forEach((entry) => formData.append('files', entry.file));
     try {
       const res = await fetch('/api/orders/detect-pages', {
         method: 'POST', credentials: 'include', body: formData
@@ -70,15 +99,20 @@ export default function Home() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       const results = data.files;
-      setFiles((prev) => prev.map((entry) => {
-        const idx = newlyAdded.findIndex((n) => n.key === entry.key);
-        if (idx === -1) return entry;
-        const result = results[idx];
-        return { ...entry, pages: result.pages, estimated: !!result.estimated };
-      }));
+      if (Array.isArray(results)) {
+        setFiles((prev) => prev.map((entry) => {
+          const idx = needDetection.findIndex((n) => n.key === entry.key);
+          if (idx === -1) return entry;
+          const result = results[idx];
+          if (result && typeof result.pages === 'number' && result.pages >= 1) {
+            return { ...entry, pages: result.pages, estimated: !!result.estimated };
+          }
+          return { ...entry, pages: entry.pages || 1, estimated: true };
+        }));
+      }
     } catch {
       setFiles((prev) => prev.map((entry) =>
-        newlyAdded.some((n) => n.key === entry.key) ? { ...entry, pages: 1, estimated: true } : entry
+        needDetection.some((n) => n.key === entry.key) ? { ...entry, pages: entry.pages || 1, estimated: true } : entry
       ));
     }
   }
@@ -277,13 +311,8 @@ export default function Home() {
                   <div className="location-detail-item">
                     <span className="detail-icon">🏛️</span>
                     <div>
-<<<<<<< HEAD
-                      <strong>Delivey Points</strong>
-                      <p>1.Main Gate<br />2.Red Canteen<br />3.Hostel Gate</p>
-=======
                       <strong>Delivery Points</strong>
-                      <p>1.Main Gate<br />2.Academic Block<br />3.Hostel Gate</p>
->>>>>>> 32df33e (upload sys)
+                      <p>1. Main Gate<br />2. Academic Block<br />3. Hostel Gate</p>
                     </div>
                   </div>
                   <div className="location-detail-item">

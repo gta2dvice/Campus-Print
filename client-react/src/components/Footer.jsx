@@ -3,29 +3,27 @@ import { Link } from 'react-router-dom';
 import '../styles/style.css';
 
 export default function Footer() {
-    const [isLoggedIn, setIsLoggedIn] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
+        let active = true;
         async function checkAuth() {
             try {
                 const res = await fetch('/api/auth/status', { credentials: 'include' });
                 const data = await res.json();
-                setIsLoggedIn(data.isLoggedIn);
+                if (active && data.isLoggedIn) {
+                    setIsLoggedIn(true);
+                }
             } catch {
-                setIsLoggedIn(false);
-            } finally {
-                setLoading(false);
+                if (active) setIsLoggedIn(false);
             }
         }
         checkAuth();
+        return () => { active = false; };
     }, []);
-
-    if (loading) return null;
 
     return (
         <footer className="site-footer">
-            <div className="footer-watermark">PRINT CAMPUS</div>
             <div className="footer-inner">
                 <div className="footer-brand">
                     <span className="footer-logo">PRINT CAMPUS</span>
@@ -40,7 +38,7 @@ export default function Footer() {
                                 <Link to="/">Home</Link>
                                 <Link to="/new-order">New Order</Link>
                                 <Link to="/dashboard">My Orders</Link>
-                                <Link to="/dashboard">👤 My Dashboard</Link>
+                                <Link to="/dashboard">My Dashboard</Link>
                                 <a href="mailto:printcampus@college.edu">Contact</a>
                             </>
                         ) : (
@@ -59,6 +57,9 @@ export default function Footer() {
                         <a href="mailto:printcampus@college.edu">Email Us</a>
                     </div>
                 </div>
+            </div>
+            <div className="footer-bottom">
+                <p>© {new Date().getFullYear()} Campus Print. All rights reserved.</p>
             </div>
         </footer>
     );

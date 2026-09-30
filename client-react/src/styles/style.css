@@ -34,6 +34,9 @@ body {
 }
 
 /* ── FloatingLines viewport background (does not intercept pointer events) ── */
+.page-background {
+    position: fixed;
+    inset: 0;
     z-index: -1;
     pointer-events: none;
     isolation: isolate;
@@ -766,13 +769,15 @@ img[src=""] {
    — ends the page, curves at top like hero card
    ══════════════════════════════════════════ */
 .site-footer {
-    background: #f3f7fb;
+    background: #0b1329;
+    color: #f8fafc;
     position: relative;
-    z-index: 12;
+    z-index: 100;
     overflow: hidden;
     padding-top: 4rem;
-    border-top: none;
-    min-height: 380px;
+    padding-bottom: 2rem;
+    border-top: 1px solid rgba(59, 130, 246, 0.25);
+    min-height: 320px;
 }
 
 /* Soft blue divider line at top */
@@ -780,37 +785,20 @@ img[src=""] {
     content: '';
     position: absolute;
     top: 0;
-    left: 6%;
-    right: 6%;
-    height: 1px;
+    left: 0;
+    right: 0;
+    height: 2px;
     background: linear-gradient(to right,
             transparent,
-            rgba(59, 130, 246, 0.35) 35%,
-            rgba(59, 130, 246, 0.35) 65%,
+            rgba(59, 130, 246, 0.6) 35%,
+            rgba(59, 130, 246, 0.6) 65%,
             transparent);
-}
-
-/* Footer watermark — large faded background text */
-.footer-watermark {
-    position: absolute;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: clamp(3rem, 10vw, 7rem);
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    white-space: nowrap;
-    color: #0f172a;
-    opacity: 0.04;
-    pointer-events: none;
-    user-select: none;
-    z-index: 0;
 }
 
 .footer-inner {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 0 3rem 3rem;
+    padding: 0 3rem 2rem;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -825,17 +813,17 @@ img[src=""] {
 }
 
 .footer-logo {
-    font-size: 2.5rem;
-    font-weight: 1000;
+    font-size: 2.2rem;
+    font-weight: 900;
     letter-spacing: 0.08em;
-    color: var(--text-primary);
+    color: #ffffff;
     display: block;
     margin-bottom: 0.6rem;
 }
 
 .footer-tagline {
     font-size: .95rem;
-    color: var(--text-secondary);
+    color: #94a3b8;
     line-height: 1.6;
 }
 
@@ -851,30 +839,30 @@ img[src=""] {
 }
 
 .footer-col h4 {
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: #60a5fa;
     margin-bottom: 0.4rem;
 }
 
 .footer-col a {
     font-size: 0.95rem;
-    color: var(--text-secondary);
+    color: #cbd5e1;
     text-decoration: none;
     transform: translateY(0);
     transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .footer-col a:hover {
-    color: var(--text-primary);
+    color: #ffffff;
     transform: translateY(-2px);
 }
 
 .footer-bottom {
-    border-top: 1px solid rgba(59, 130, 246, 0.12);
-    padding: 1.5rem 3rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1.5rem 3rem 0.5rem;
     text-align: center;
     max-width: 1100px;
     margin: 0 auto;
@@ -884,7 +872,7 @@ img[src=""] {
 
 .footer-bottom p {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: #94a3b8;
 }
 .pc-footer-cta {
     margin: 50px;
@@ -1843,3 +1831,126 @@ img[src=""] {
         width: 100%;
         justify-content: center;
     }
+
+/* ══════════════════════════════════════════
+   AUTH / PROFILE PAGES STYLING
+   ══════════════════════════════════════════ */
+body.auth-page {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+    min-height: 100vh;
+}
+
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.auth-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 480px;
+    padding: 2.5rem 2rem;
+    margin-top: 1.5rem;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.auth-header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.auth-header p {
+    font-size: 0.95rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.auth-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: left;
+}
+
+.auth-form label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    letter-spacing: 0.01em;
+}
+
+.auth-form input[type="text"],
+.auth-form input[type="email"],
+.auth-form input[type="password"],
+.auth-form input[type="tel"] {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    color: #0f172a;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.auth-form input:focus {
+    background: #ffffff;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.auth-submit {
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    margin-top: 0.5rem;
+}
+
+.auth-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+    filter: brightness(1.05);
+}
+
+.auth-submit:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+.auth-submit:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}

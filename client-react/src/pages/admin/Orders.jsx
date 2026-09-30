@@ -3,9 +3,27 @@ import { useSearchParams } from 'react-router-dom';
 import Toast from '../../components/Toast';
 import StatusBadge from '../../components/admin/StatusBadge';
 import Pagination from '../../components/admin/Pagination';
-import { adminApi, fmtMoney, fmtDate, fmtPickup, LIVE_REFRESH_MS, STATUS_LABELS, NEXT_ACTIONS } from '../../lib/adminHelpers';
+import { adminApi, fmtMoney, fmtDate, fmtPickup, LIVE_REFRESH_MS, STATUS_LABELS } from '../../lib/adminHelpers';
 
 const STATUS_OPTIONS = ['pending', 'accepted', 'printing', 'ready', 'completed', 'rejected', 'cancelled'];
+
+const ACTION_BUTTON_CLASSES = {
+  accepted: 'admin-action-btn admin-action-btn-accept',
+  rejected: 'admin-action-btn admin-action-btn-reject',
+  printing: 'admin-action-btn admin-action-btn-print',
+  ready: 'admin-action-btn admin-action-btn-ready',
+  completed: 'admin-action-btn admin-action-btn-complete',
+};
+
+const NEXT_ACTIONS_CONFIG = {
+  pending: [
+    { status: 'accepted', label: 'Accept' },
+    { status: 'rejected', label: 'Reject' },
+  ],
+  accepted: [{ status: 'printing', label: 'Start Printing' }],
+  printing: [{ status: 'ready', label: 'Mark Ready' }],
+  ready: [{ status: 'completed', label: 'Mark Completed' }],
+};
 
 export default function Orders() {
   const [searchParams] = useSearchParams();
@@ -16,15 +34,11 @@ export default function Orders() {
   const [appliedFilters, setAppliedFilters] = useState({ search: '', status: searchParams.get('status') || '', dateFrom: '', dateTo: '' });
   const [page, setPage] = useState(1);
 
-  // The sidebar links to /admin/orders with different ?status= values while
-  // staying on this same route element, so React Router won't remount this
-  // component — re-sync the filter from the URL whenever it changes.
   useEffect(() => {
     const urlStatus = searchParams.get('status') || '';
     setStatus(urlStatus);
     setPage(1);
     setAppliedFilters((f) => ({ ...f, status: urlStatus }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const [data, setData] = useState(null);
@@ -77,7 +91,6 @@ export default function Orders() {
     loadOrders();
     const timer = setInterval(() => loadOrders(true), LIVE_REFRESH_MS);
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedFilters, page]);
 
   function applyFilters() {
@@ -99,7 +112,7 @@ export default function Orders() {
       const res = await adminApi(`/api/admin/orders/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
       const respData = await res.json();
       if (!res.ok) { showToast(respData.message || 'Update failed', 'error'); return; }
-      showToast(`Order marked as ${STATUS_LABELS[newStatus]}.`);
+      showToast(`Order marked as ${STATUS_LABELS[newStatus] || newStatus}.`);
       if (closeModal) setModalOrder(null);
       loadOrders();
     } catch {
@@ -145,74 +158,121 @@ export default function Orders() {
   }
 
   return (
-    <div>
-      <div className="mb-5 flex flex-wrap items-center gap-2.5">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by Order ID or email…"
-          className="rounded-[10px] border border-gray-200 bg-white px-3.5 py-[0.55rem] text-[0.85rem] text-gray-900 focus:border-blue-500 focus:outline-none"
-        />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded-[10px] border border-gray-200 bg-white px-3.5 py-[0.55rem] text-[0.85rem] text-gray-900 focus:border-blue-500 focus:outline-none"
-        >
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-          ))}
-        </select>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="rounded-[10px] border border-gray-200 bg-white px-3.5 py-[0.55rem] text-[0.85rem] text-gray-900 focus:border-blue-500 focus:outline-none" />
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="rounded-[10px] border border-gray-200 bg-white px-3.5 py-[0.55rem] text-[0.85rem] text-gray-900 focus:border-blue-500 focus:outline-none" />
-        <button onClick={applyFilters} className="rounded-full bg-blue-500 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-white transition hover:bg-blue-600">Apply</button>
-        <button onClick={resetFilters} className="rounded-full border border-gray-200 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-gray-600 transition hover:border-blue-500 hover:bg-blue-500/[0.08] hover:text-blue-500">Reset</button>
+    <div className="space-y-6">
+      {/* Filter Card Container */}
+      <div className="admin-filter-card">
+        <div className="admin-filter-group">
+          <div className="admin-search-box">
+            <svg className="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search Order ID, student name, or email…"
+              className="admin-search-input"
+            />
+          </div>
+
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="admin-select"
+          >
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="admin-date-input"
+            />
+            <span className="text-xs text-slate-400 font-bold">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="admin-date-input"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={applyFilters} className="admin-btn-primary">
+            Apply Filters
+          </button>
+          <button onClick={resetFilters} className="admin-btn-secondary">
+            Reset
+          </button>
+        </div>
       </div>
 
-      <div className="rounded-[18px] border border-gray-300/50 bg-white/90 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md">
+      {/* Orders Table Container */}
+      <div className="admin-card">
         {loading ? (
-          <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+          <div className="py-12 text-center text-xs font-semibold text-slate-400">Loading print orders...</div>
         ) : error ? (
-          <p className="py-6 text-center text-sm text-red-500">Couldn't load orders. {error}</p>
+          <div className="py-8 text-center text-xs font-bold text-rose-600">Couldn't load orders. {error}</div>
         ) : !data?.orders?.length ? (
-          <div className="py-6 text-center text-sm text-gray-400">No orders match your filters.</div>
+          <div className="py-12 text-center text-xs font-semibold text-slate-400">No print orders match your selected filters.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[0.85rem]">
+          <div className="admin-table-container">
+            <table className="admin-table">
               <thead>
                 <tr>
-                  {['Order ID', 'Customer', 'Pickup', 'Details', 'Status', 'Amount', 'Date', 'Actions'].map((h) => (
-                    <th key={h} className="whitespace-nowrap border-b border-gray-200 px-3 py-2.5 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
-                  ))}
+                  <th>Order ID</th>
+                  <th>Customer & Contact</th>
+                  <th>Pickup Slot</th>
+                  <th>Specs</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {data.orders.map((o) => (
-                  <tr key={o.id} className="transition hover:bg-blue-500/[0.03]">
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">#{String(o.id).padStart(4, '0')}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.customer_email}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtPickup(o)}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{o.color_option === 'bw' ? 'B&W' : 'Color'} · {o.paper_size} · {o.copies}x</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]"><StatusBadge status={o.status} /></td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] font-bold text-gray-900">{fmtMoney(o.total_price)}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem] text-gray-900">{fmtDate(o.created_at)}</td>
-                    <td className="whitespace-nowrap border-b border-gray-100 px-3 py-[0.7rem]">
-                      <button
-                        onClick={() => openOrderModal(o.id)}
-                        className="ml-[0.3rem] rounded-full border border-gray-200 px-[0.7rem] py-[0.32rem] text-[0.72rem] font-semibold text-gray-600 transition hover:border-blue-500 hover:bg-blue-500/[0.08] hover:text-blue-500"
-                      >
-                        View
-                      </button>
-                      {(NEXT_ACTIONS[o.status] || []).map((a) => (
+                  <tr key={o.id}>
+                    <td className="font-extrabold text-slate-900 whitespace-nowrap">#{String(o.id).padStart(4, '0')}</td>
+                    <td>
+                      <div className="font-bold text-slate-900">{o.full_name || o.customer_email}</div>
+                      <div className="text-[0.68rem] text-slate-400">{o.phone_number || o.customer_email}</div>
+                    </td>
+                    <td className="text-slate-600 font-medium whitespace-nowrap">{fmtPickup(o)}</td>
+                    <td className="whitespace-nowrap">
+                      <span className="inline-block rounded bg-slate-100 px-2 py-0.5 text-[0.7rem] font-bold text-slate-700">
+                        {o.color_option === 'bw' ? 'B&W' : 'Color'} · {o.paper_size} · {o.copies}x
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap">
+                      <StatusBadge status={o.status} />
+                    </td>
+                    <td className="font-black text-slate-900 whitespace-nowrap">{fmtMoney(o.total_price)}</td>
+                    <td className="text-[0.68rem] text-slate-400 whitespace-nowrap">{fmtDate(o.created_at)}</td>
+                    <td className="text-right whitespace-nowrap">
+                      <div className="admin-actions-cell">
                         <button
-                          key={a.status}
-                          onClick={() => (a.status === 'rejected' ? openRejectModal(o.id) : updateOrderStatus(o.id, a.status))}
-                          className={`ml-[0.3rem] rounded-full px-[0.7rem] py-[0.32rem] text-[0.72rem] font-semibold ${a.cls}`}
+                          onClick={() => openOrderModal(o.id)}
+                          className="admin-action-btn admin-action-btn-view"
                         >
-                          {a.label}
+                          Details
                         </button>
-                      ))}
+                        {(NEXT_ACTIONS_CONFIG[o.status] || []).map((a) => (
+                          <button
+                            key={a.status}
+                            onClick={() => (a.status === 'rejected' ? openRejectModal(o.id) : updateOrderStatus(o.id, a.status))}
+                            className={ACTION_BUTTON_CLASSES[a.status] || 'admin-action-btn admin-action-btn-print'}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -223,106 +283,205 @@ export default function Orders() {
         {data && <Pagination page={data.page} limit={data.limit} total={data.total} onPage={setPage} />}
       </div>
 
+      {/* Order Details Modal */}
       {modalOrder && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/45 p-6 admin-overlay-in" onClick={(e) => { if (e.target === e.currentTarget) setModalOrder(null); }}>
-          <div className="max-h-[85vh] w-full max-w-[560px] overflow-y-auto rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
-              <h3 className="text-[1.05rem] font-bold text-gray-900">Order #{String(modalOrder.id).padStart(4, '0')}</h3>
-              <button onClick={() => setModalOrder(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+        <div className="admin-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setModalOrder(null); }}>
+          <div className="admin-modal-card">
+            {/* Header */}
+            <div className="admin-modal-header">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-extrabold text-sm border border-blue-100 flex-shrink-0">
+                  #{String(modalOrder.id).padStart(4, '0')}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-base font-black text-slate-900">Order #{String(modalOrder.id).padStart(4, '0')}</h3>
+                    {modalOrder.status && <StatusBadge status={modalOrder.status} />}
+                  </div>
+                  <div className="text-xs text-slate-500 font-medium">Placed on {fmtDate(modalOrder.created_at)}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalOrder(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-800 transition"
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
-            <div className="p-6">
+
+            {/* Body */}
+            <div className="admin-modal-body">
               {modalLoading ? (
-                <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+                <div className="py-12 text-center text-xs font-semibold text-slate-400">Loading order details...</div>
               ) : modalError ? (
-                <p className="py-6 text-center text-sm text-red-500">Couldn't load order. {modalError}</p>
+                <div className="py-8 text-center text-xs font-bold text-rose-600">Couldn't load order details. {modalError}</div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-[0.9rem]">
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Customer</span><span className="text-gray-900">{modalOrder.customer_email}</span></div>
-                    <div className="col-span-2 p-3 rounded-lg bg-blue-50 border border-blue-100">
-                      <span className="mb-1 block text-[0.72rem] uppercase tracking-wide text-blue-400 font-bold">Student Details</span>
-                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-                        <div><strong className="text-gray-400">Name:</strong> {modalOrder.full_name || 'N/A'}</div>
-                        <div><strong className="text-gray-400">Phone:</strong> {modalOrder.phone_number || 'N/A'}</div>
-                        <div><strong className="text-gray-400">Room:</strong> {modalOrder.class_room_number || 'N/A'}</div>
+                  {/* Customer Contact Section */}
+                  <div className="admin-modal-section">
+                    <div className="admin-modal-section-title">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Customer Contact
+                    </div>
+                    <div className="admin-modal-grid">
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Customer Name</span>
+                        <span className="admin-modal-value">{modalOrder.full_name || 'N/A'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Phone Number</span>
+                        <span className="admin-modal-value">{modalOrder.phone_number || 'N/A'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Email Address</span>
+                        <span className="admin-modal-value">{modalOrder.customer_email || 'N/A'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Room / Hostel</span>
+                        <span className="admin-modal-value">{modalOrder.class_room_number || 'N/A'}</span>
                       </div>
                     </div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Status</span><StatusBadge status={modalOrder.status} /></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Color</span><span className="text-gray-900">{modalOrder.color_option === 'bw' ? 'Black & White' : 'Color'}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Paper Size</span><span className="text-gray-900">{modalOrder.paper_size}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Copies</span><span className="text-gray-900">{modalOrder.copies}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Spiral Binding</span><span className="text-gray-900">{modalOrder.spiral_binding ? 'Yes' : 'No'}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Express Delivery</span><span className="text-gray-900">{modalOrder.express_delivery ? 'Yes' : 'No'}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Amount</span><span className="font-bold text-gray-900">{fmtMoney(modalOrder.total_price)}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Collection Location</span><span className="text-gray-900">{modalOrder.collection_location || '—'}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Collection Time</span><span className="text-gray-900">{modalOrder.collection_time || '—'}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Ticket</span><span className="text-gray-900">{modalOrder.ticket_number || '—'}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Printing Side</span><span className="text-gray-900">{modalOrder.printing_side === 'double' ? 'Double-Sided' : 'Single-Sided'}</span></div>
-                    <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Placed On</span><span className="text-gray-900">{fmtDate(modalOrder.created_at)}</span></div>
-                    {modalOrder.rejection_reason && (
-                      <div><span className="mb-[0.15rem] block text-[0.72rem] uppercase tracking-wide text-gray-400">Rejection Reason</span><span className="text-gray-900">{modalOrder.rejection_reason}</span></div>
-                    )}
                   </div>
 
-                  <h4 className="mb-3 mt-5 text-[0.9rem] font-bold text-gray-900">Documents ({modalOrder.files?.length || 0})</h4>
-                  {modalOrder.files?.length ? (
-                    <ul className="flex flex-col gap-2">
-                      {modalOrder.files.map((f) => (
-                        <li key={f.id} className="flex items-center justify-between rounded-[10px] bg-black/[0.02] px-[0.8rem] py-[0.6rem] text-[0.82rem]">
-                          <span className="text-gray-900">{f.original_name} <small className="text-gray-400">({(f.size_bytes / 1024).toFixed(0)} KB)</small></span>
-                          <span>
-                            <a href={`/api/admin/orders/${modalOrder.id}/documents/${f.id}`} target="_blank" rel="noopener noreferrer" className="ml-3 text-[0.78rem] font-semibold text-blue-500 hover:underline">View</a>
-                            <a href={`/api/admin/orders/${modalOrder.id}/documents/${f.id}?download=1`} className="ml-3 text-[0.78rem] font-semibold text-blue-500 hover:underline">Download</a>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="py-3 text-center text-sm text-gray-400">No documents uploaded for this order.</p>
-                  )}
-
-                  {(NEXT_ACTIONS[modalOrder.status] || []).length > 0 && (
-                    <div className="mt-5 flex justify-end gap-2.5">
-                      {(NEXT_ACTIONS[modalOrder.status] || []).map((a) => (
-                        <button
-                          key={a.status}
-                          onClick={() => (a.status === 'rejected' ? (setModalOrder(null), openRejectModal(modalOrder.id)) : updateOrderStatus(modalOrder.id, a.status, true))}
-                          className={`rounded-full px-[1.1rem] py-2 text-[0.85rem] font-semibold ${a.cls}`}
-                        >
-                          {a.label}
-                        </button>
-                      ))}
+                  {/* Print Specifications Section */}
+                  <div className="admin-modal-section">
+                    <div className="admin-modal-section-title">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Print Specifications
                     </div>
-                  )}
+                    <div className="admin-modal-grid">
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Color Mode</span>
+                        <span className="admin-modal-value">{modalOrder.color_option === 'bw' ? 'Black & White' : 'Color'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Paper Size</span>
+                        <span className="admin-modal-value">{modalOrder.paper_size || 'A4'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Copies</span>
+                        <span className="admin-modal-value">{modalOrder.copies}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Printing Side</span>
+                        <span className="admin-modal-value">{modalOrder.printing_side === 'double' ? 'Double-Sided' : 'Single-Sided'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Spiral Binding</span>
+                        <span className="admin-modal-value">{modalOrder.spiral_binding ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Express Delivery</span>
+                        <span className="admin-modal-value">{modalOrder.express_delivery ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Pickup Slot</span>
+                        <span className="admin-modal-value">{fmtPickup(modalOrder)}</span>
+                      </div>
+                      <div className="admin-modal-field">
+                        <span className="admin-modal-label">Total Price</span>
+                        <span className="admin-modal-value text-blue-600 text-base font-black">{fmtMoney(modalOrder.total_price)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Uploaded Documents Section */}
+                  <div className="admin-modal-section">
+                    <div className="admin-modal-section-title">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      Uploaded Documents ({modalOrder.files?.length || 0})
+                    </div>
+                    {modalOrder.files?.length ? (
+                      <div>
+                        {modalOrder.files.map((f) => (
+                          <div key={f.id} className="admin-doc-item">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="admin-doc-badge">PDF</div>
+                              <div className="min-w-0">
+                                <div className="admin-doc-name">{f.original_name}</div>
+                                <div className="admin-doc-size">{(f.size_bytes / 1024).toFixed(0)} KB</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <a
+                                href={`/api/admin/orders/${modalOrder.id}/documents/${f.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="admin-doc-btn admin-doc-btn-view"
+                              >
+                                View
+                              </a>
+                              <a
+                                href={`/api/admin/orders/${modalOrder.id}/documents/${f.id}?download=1`}
+                                className="admin-doc-btn admin-doc-btn-dl"
+                              >
+                                Download
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="py-2 text-center text-xs font-semibold text-slate-400">No document files attached.</p>
+                    )}
+                  </div>
                 </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="admin-modal-footer">
+              <button onClick={() => setModalOrder(null)} className="admin-btn-secondary">
+                Close
+              </button>
+              {modalOrder && (NEXT_ACTIONS_CONFIG[modalOrder.status] || []).length > 0 && (
+                <div className="flex items-center gap-2">
+                  {(NEXT_ACTIONS_CONFIG[modalOrder.status] || []).map((a) => (
+                    <button
+                      key={a.status}
+                      onClick={() => (a.status === 'rejected' ? (setModalOrder(null), openRejectModal(modalOrder.id)) : updateOrderStatus(modalOrder.id, a.status, true))}
+                      className={ACTION_BUTTON_CLASSES[a.status] || 'admin-action-btn admin-action-btn-print'}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         </div>
       )}
 
+      {/* Reject Reason Modal */}
       {rejectOrderId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/45 p-6 admin-overlay-in" onClick={(e) => { if (e.target === e.currentTarget) setRejectOrderId(null); }}>
-          <div className="w-full max-w-[420px] overflow-y-auto rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
-              <h3 className="text-[1.05rem] font-bold text-gray-900">Reject Order</h3>
-              <button onClick={() => setRejectOrderId(null)} className="text-gray-400 hover:text-gray-700">✕</button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs admin-overlay-in" onClick={(e) => { if (e.target === e.currentTarget) setRejectOrderId(null); }}>
+          <div className="w-full max-w-[420px] rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h3 className="text-base font-extrabold text-slate-900">Reject Print Order</h3>
+              <button onClick={() => setRejectOrderId(null)} className="text-slate-400 hover:text-slate-700">✕</button>
             </div>
-            <div className="p-6">
-              <p className="text-sm text-gray-700">Are you sure you want to reject this order? This cannot be undone.</p>
-              <label className="mt-4 flex flex-col gap-1.5 text-sm font-medium text-gray-700">
-                <span>Reason (optional)</span>
+            <div className="mt-4 space-y-4">
+              <p className="text-xs text-slate-600">Are you sure you want to reject order #{String(rejectOrderId).padStart(4, '0')}?</p>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Reason for rejection (optional)</label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   rows={2}
-                  placeholder="e.g. Unsupported file format"
-                  className="rounded-[10px] border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  placeholder="e.g. Unsupported file format or unreadable document"
+                  className="admin-input"
                 />
-              </label>
-              <div className="mt-5 flex justify-end gap-2.5">
-                <button onClick={() => setRejectOrderId(null)} className="rounded-full border border-gray-200 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-gray-600 transition hover:border-blue-500 hover:bg-blue-500/[0.08] hover:text-blue-500">Cancel</button>
-                <button onClick={confirmReject} className="rounded-full bg-red-500 px-[1.1rem] py-2 text-[0.85rem] font-semibold text-white transition hover:bg-red-600">Reject Order</button>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setRejectOrderId(null)} className="admin-btn-secondary">Cancel</button>
+                <button onClick={confirmReject} className="admin-action-btn admin-action-btn-reject">Confirm Reject</button>
               </div>
             </div>
           </div>

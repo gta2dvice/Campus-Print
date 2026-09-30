@@ -26,10 +26,6 @@ function Icon({ name, className = 'h-[17px] w-[17px]' }) {
   );
 }
 
-// Each nav entry targets a pathname plus an (optional) exact query-string
-// match. Order sub-links all share the `/admin/orders` pathname and are only
-// distinguished by `?status=`, so pathname alone can't tell them apart —
-// active state must compare pathname AND status together (see isNavItemActive).
 const ADMIN_NAV = [
   { key: 'dashboard', label: 'Dashboard', path: '/admin', icon: 'grid', exact: true },
   {
@@ -60,20 +56,12 @@ const ADMIN_NAV = [
   },
 ];
 
-// Exactly one nav item may be active at a time, derived purely from the
-// current pathname + search — never from a shared/hoisted boolean.
 function isNavItemActive(item, location) {
   if (item.exact) return location.pathname === item.path;
   if (item.path !== location.pathname) return false;
-  if (item.status === undefined) return true; // plain pathname-only item (earnings, settings, ...)
+  if (item.status === undefined) return true;
   const currentStatus = new URLSearchParams(location.search).get('status') || null;
   return currentStatus === item.status;
-}
-
-function navItemClasses(active) {
-  return `flex w-full items-center gap-3 rounded-[10px] px-3.5 py-2.5 text-left text-[0.85rem] font-medium transition ${
-    active ? 'bg-blue-500 text-white shadow-[0_2px_8px_rgba(59,130,246,0.3)]' : 'text-gray-600 hover:bg-blue-500/[0.08] hover:text-blue-500'
-  }`;
 }
 
 const FLAT_ADMIN_NAV = ADMIN_NAV.flatMap((entry) => (entry.group ? entry.items : [entry]));
@@ -84,7 +72,8 @@ export default function AdminLayout() {
   const activeNavItem = FLAT_ADMIN_NAV.find((item) => isNavItemActive(item, location));
   const pageTitle = activeNavItem ? activeNavItem.label : 'Dashboard';
   const [checking, setChecking] = useState(true);
-  const [profileName, setProfileName] = useState('Loading…');
+  const [profileName, setProfileName] = useState('Shop Owner');
+  const [pendingCount, setPendingCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const chipRef = useRef(null);
@@ -108,16 +97,27 @@ export default function AdminLayout() {
             const shop = await shopRes.json();
             if (!cancelled && shop && shop.shop_name) setProfileName(shop.shop_name);
           }
-        } catch { /* keep email-derived name */ }
+        } catch { /* keep fallback */ }
+
+        try {
+          const dashRes = await fetch('/api/admin/dashboard', { credentials: 'include' });
+          if (dashRes.ok) {
+            const dash = await dashRes.json();
+            if (!cancelled && dash?.statusCounts?.pending !== undefined) {
+              setPendingCount(dash.statusCounts.pending);
+            }
+          }
+        } catch { /* silent */ }
       } catch {
-        // network hiccup — leave the guard to the next navigation
+        // network hiccup
       } finally {
         if (!cancelled) setChecking(false);
       }
     }
 
     guard();
-    return () => { cancelled = true; };
+    const interval = setInterval(guard, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [navigate]);
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export default function AdminLayout() {
   }, []);
 
   async function handleLogout(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
       await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
     } finally {
@@ -140,106 +140,162 @@ export default function AdminLayout() {
   if (checking) return null;
 
   return (
-    <div className="flex min-h-screen bg-[linear-gradient(135deg,#f3f7fb_0%,#eaf1f7_100%)]">
-      <aside
-        className={`fixed left-0 top-0 z-[60] flex h-screen w-[264px] flex-col overflow-y-auto border-r border-[#f0f4f8] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06),0_2px_4px_rgba(0,0,0,0.04)] transition-transform duration-250 max-md:-translate-x-full ${
-          sidebarOpen ? 'max-md:translate-x-0' : ''
-        }`}
-      >
-        <div className="flex items-center gap-3 border-b border-[#f0f4f8] px-5 py-6">
-          <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_2px_8px_rgba(59,130,246,0.35)]">
-            <Icon name="printer" className="h-[18px] w-[18px]" />
+    <div className="admin-app-container">
+      {/* Sidebar */}
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        {/* Brand Header */}
+        <div className="admin-brand">
+          <div className="admin-brand-icon">
+            <Icon name="printer" className="h-5 w-5" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0b1120] bg-emerald-500" />
           </div>
-          <div>
-            <span className="block text-[0.92rem] font-extrabold tracking-wide text-gray-900">CAMPUS PRINT</span>
-            <span className="mt-0.5 block text-[0.7rem] font-medium text-gray-400">Shop Owner Panel</span>
+          <div className="min-w-0 flex-1">
+            <h1 className="admin-brand-title">CAMPUS PRINT</h1>
+            <span className="admin-brand-subtitle">Shop Admin Panel</span>
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-[0.2rem] px-3 py-4">
+        {/* Nav links */}
+        <nav className="admin-nav-section">
           {ADMIN_NAV.map((entry) =>
             entry.group ? (
               <div key={entry.group}>
-                <div className="px-3.5 pb-[0.3rem] pt-[0.9rem] text-[0.68rem] font-bold uppercase tracking-wider text-gray-400">{entry.group}</div>
-                {entry.items.map((item) => (
-                  <Link
-                    key={item.key}
-                    to={item.status ? `${item.path}?status=${item.status}` : item.path}
-                    className={navItemClasses(isNavItemActive(item, location))}
-                  >
-                    <Icon name={item.icon} />
-                    {item.label}
-                  </Link>
-                ))}
+                <div className="admin-nav-group-label">{entry.group}</div>
+                {entry.items.map((item) => {
+                  const active = isNavItemActive(item, location);
+                  const isPendingLink = item.key === 'orders-pending';
+                  return (
+                    <Link
+                      key={item.key}
+                      to={item.status ? `${item.path}?status=${item.status}` : item.path}
+                      className={`admin-nav-item ${active ? 'active' : ''}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 truncate">
+                        <Icon name={item.icon} className={`h-4 w-4 ${active ? 'text-white' : 'text-slate-400'}`} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {isPendingLink && pendingCount > 0 && (
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[0.68rem] font-bold text-slate-950 shadow-sm flex-shrink-0">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
             ) : (
-              <Link key={entry.key} to={entry.path} className={navItemClasses(isNavItemActive(entry, location))}>
-                <Icon name={entry.icon} />
-                {entry.label}
+              <Link
+                key={entry.key}
+                to={entry.path}
+                className={`admin-nav-item ${isNavItemActive(entry, location) ? 'active' : ''}`}
+              >
+                <div className="flex items-center gap-3 min-w-0 truncate">
+                  <Icon name={entry.icon} className={`h-4 w-4 ${isNavItemActive(entry, location) ? 'text-white' : 'text-slate-400'}`} />
+                  <span className="truncate">{entry.label}</span>
+                </div>
               </Link>
             )
           )}
         </nav>
 
-        <div className="border-t border-[#f0f4f8] p-3">
-          <a
-            href="#"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-[10px] px-3.5 py-2.5 text-[0.85rem] font-medium text-gray-600 transition hover:bg-red-500/[0.08] hover:text-red-500"
-          >
-            <Icon name="logout" />
-            Logout
-          </a>
+        {/* Footer Profile & Logout */}
+        <div className="admin-sidebar-footer">
+          <div className="admin-user-card">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/30 text-blue-400 font-bold text-xs flex-shrink-0">
+              {profileName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-bold text-white capitalize">{profileName}</div>
+              <div className="flex items-center gap-1.5 text-[0.66rem] text-emerald-400 font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Shop Active</span>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={handleLogout} className="admin-logout-btn">
+            <Icon name="logout" className="h-4 w-4" />
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
 
+      {/* Overlay for mobile drawer */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-[55] bg-gray-900/40 admin-overlay-in"
+          className="fixed inset-0 z-[55] bg-slate-950/60 backdrop-blur-sm admin-overlay-in md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <div className="ml-[264px] flex min-h-screen flex-1 flex-col max-md:ml-0">
-        <header className="sticky top-0 z-40 flex h-[68px] items-center justify-between border-b border-gray-300/50 bg-white/85 px-8 backdrop-blur-md max-md:px-5">
+      {/* Main Content Wrapper */}
+      <div className="admin-main-wrapper">
+        <header className="admin-header">
           <div className="flex items-center gap-4">
             <button
-              className="flex h-[38px] w-[38px] items-center justify-center rounded-[10px] border border-gray-200 text-gray-600 transition hover:border-blue-500 hover:bg-blue-500/[0.08] hover:text-blue-500 md:hidden"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 md:hidden"
               onClick={() => setSidebarOpen(true)}
-              title="Menu"
+              title="Toggle Navigation"
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
-            <h1 className="text-[1.15rem] font-bold tracking-tight text-gray-900">{pageTitle}</h1>
+            <h1 className="admin-header-title">{pageTitle}</h1>
           </div>
 
-          <div className="flex items-center gap-3" ref={chipRef}>
+          <div className="flex items-center gap-4" ref={chipRef}>
+            {/* Live Indicator */}
+            <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 max-sm:hidden">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Live Store</span>
+            </div>
+
+            {/* Profile Menu Dropdown */}
             <div className="relative">
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setDropdownOpen((v) => !v); }}
-                className="flex items-center gap-2.5 rounded-full border border-gray-200 py-[0.35rem] pl-[0.35rem] pr-[0.7rem] transition hover:border-blue-500"
+                className="admin-profile-chip"
               >
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white">
-                  <Icon name="printer" className="h-[15px] w-[15px]" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-sm">
+                  {profileName.charAt(0).toUpperCase()}
                 </div>
-                <div className="flex flex-col leading-tight max-md:hidden">
-                  <span className="text-[0.82rem] font-semibold capitalize text-gray-900">{profileName}</span>
-                  <span className="text-[0.68rem] text-gray-400">Shop Owner</span>
+                <div className="flex flex-col text-left leading-tight max-md:hidden pr-1">
+                  <span className="text-xs font-bold text-slate-900 capitalize">{profileName}</span>
+                  <span className="text-[0.65rem] text-slate-500 font-semibold">Shop Admin</span>
                 </div>
-                <svg className="h-3.5 w-3.5 text-gray-400 max-md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="h-3.5 w-3.5 text-slate-400 max-md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </button>
+
               {dropdownOpen && (
-                <div className="absolute right-0 top-[calc(100%+8px)] z-50 min-w-[170px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_10px_25px_rgba(0,0,0,0.08),0_4px_8px_rgba(0,0,0,0.04)]">
-                  <Link to="/admin/settings" className="block px-4 py-2.5 text-[0.82rem] text-gray-600 hover:bg-blue-500/[0.08] hover:text-blue-500">
-                    Account Settings
+                <div className="admin-dropdown-menu">
+                  <Link
+                    to="/admin/shop-profile"
+                    onClick={() => setDropdownOpen(false)}
+                    className="admin-dropdown-item"
+                  >
+                    <Icon name="shop" className="h-4 w-4" />
+                    <span>Shop Profile</span>
                   </Link>
-                  <a href="#" onClick={handleLogout} className="block px-4 py-2.5 text-[0.82rem] text-gray-600 hover:bg-blue-500/[0.08] hover:text-blue-500">
-                    Logout
+                  <Link
+                    to="/admin/settings"
+                    onClick={() => setDropdownOpen(false)}
+                    className="admin-dropdown-item"
+                  >
+                    <Icon name="gear" className="h-4 w-4" />
+                    <span>Account Settings</span>
+                  </Link>
+                  <div className="my-1 border-t border-slate-100" />
+                  <a
+                    href="#"
+                    onClick={handleLogout}
+                    className="admin-dropdown-item danger"
+                  >
+                    <Icon name="logout" className="h-4 w-4" />
+                    <span>Logout</span>
                   </a>
                 </div>
               )}
@@ -247,7 +303,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="w-full max-w-[1440px] flex-1 px-8 pb-10 pt-7 max-md:px-5 max-md:pt-5">
+        <main className="admin-content-body">
           <Outlet />
         </main>
       </div>

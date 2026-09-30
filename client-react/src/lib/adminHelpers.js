@@ -11,16 +11,16 @@ export const STATUS_LABELS = {
 };
 
 export const STATUS_BADGE_CLASSES = {
-  pending: 'bg-amber-500/10 text-amber-600',
-  accepted: 'bg-blue-500/10 text-blue-600',
-  printing: 'bg-violet-500/10 text-violet-600',
-  ready: 'bg-emerald-500/10 text-emerald-600',
-  completed: 'bg-gray-500/10 text-gray-600',
-  rejected: 'bg-red-500/10 text-red-600',
-  cancelled: 'bg-red-500/8 text-red-700',
-  success: 'bg-emerald-500/10 text-emerald-600',
-  refunded: 'bg-gray-500/10 text-gray-600',
-  failed: 'bg-red-500/10 text-red-600',
+  pending: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  accepted: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  printing: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+  ready: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  completed: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+  rejected: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+  cancelled: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+  success: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  refunded: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+  failed: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
 };
 
 export const PAY_LABELS = {

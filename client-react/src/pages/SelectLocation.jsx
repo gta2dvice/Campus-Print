@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 import { useEffect, useState } from 'react';
-=======
-import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
->>>>>>> 32df33e (upload sys)
 import PageBackground from '../components/PageBackground';
 import Footer from '../components/Footer';
 import Toast from '../components/Toast';
