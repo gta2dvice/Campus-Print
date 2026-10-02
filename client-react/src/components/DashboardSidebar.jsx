@@ -1,11 +1,13 @@
 import { NavLink, useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardSidebar({ userName }) {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   async function handleLogout() {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await signOut();
     } finally {
       navigate('/');
     }

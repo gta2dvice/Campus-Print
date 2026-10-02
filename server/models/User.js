@@ -12,7 +12,7 @@ async function createUser(email, password) {
 
 async function findByEmail(email) {
     const [rows] = await pool.execute(
-        'SELECT id, email, password, is_admin, role, is_active, shop_id FROM users WHERE email = ?',
+        'SELECT id, email, password, is_admin, role, is_active, shop_id, supabase_uid FROM users WHERE email = ?',
         [email.toLowerCase().trim()]
     );
     return rows[0] || null;
@@ -20,13 +20,60 @@ async function findByEmail(email) {
 
 async function findById(id) {
     const [rows] = await pool.execute(
-        'SELECT id, email, is_admin, role, is_active, shop_id, created_at FROM users WHERE id = ?',
+        'SELECT id, email, is_admin, role, is_active, shop_id, supabase_uid, created_at FROM users WHERE id = ?',
         [id]
     );
     return rows[0] || null;
 }
 
+async function findBySupabaseUid(supabaseUid) {
+    if (!supabaseUid) return null;
+    const [rows] = await pool.execute(
+        'SELECT id, email, is_admin, role, is_active, shop_id, supabase_uid, created_at FROM users WHERE supabase_uid = ?',
+        [supabaseUid]
+    );
+    return rows[0] || null;
+}
+
+async function upsertSupabaseUser({ supabaseUid, email }) {
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    if (!supabaseUid || !normalizedEmail) return null;
+
+    let user = await findBySupabaseUid(supabaseUid);
+    if (user) {
+        return user;
+    }
+
+    const [emailRows] = await pool.execute(
+        'SELECT id, email, is_admin, role, is_active, shop_id, supabase_uid FROM users WHERE email = ?',
+        [normalizedEmail]
+    );
+    if (emailRows[0]) {
+        user = emailRows[0];
+        await pool.execute(
+            'UPDATE users SET supabase_uid = ?, password = NULL WHERE id = ?',
+            [supabaseUid, user.id]
+        );
+        user.supabase_uid = supabaseUid;
+        return user;
+    }
+
+    const [result] = await pool.execute(
+        'INSERT INTO users (email, password, is_admin, role, is_active, supabase_uid) VALUES (?, NULL, 0, ?, 1, ?)',
+        [normalizedEmail, 'student', supabaseUid]
+    );
+    return {
+        id: result.insertId,
+        email: normalizedEmail,
+        is_admin: 0,
+        role: 'student',
+        is_active: 1,
+        supabase_uid: supabaseUid
+    };
+}
+
 async function matchPassword(plainPassword, hashedPassword) {
+    if (!hashedPassword) return false;
     return await bcrypt.compare(plainPassword, hashedPassword);
 }
 
@@ -52,7 +99,7 @@ async function listUsers({ search = '', role = '', page = 1, limit = 20 } = {}) 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [rows] = await pool.query(
-        `SELECT id, email, role, is_active, created_at FROM users
+        `SELECT id, email, role, is_active, created_at, supabase_uid FROM users
          ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
         [...params, limit, offset]
     );
@@ -88,6 +135,8 @@ module.exports = {
     createUser,
     findByEmail,
     findById,
+    findBySupabaseUid,
+    upsertSupabaseUser,
     matchPassword,
     updatePassword,
     listUsers,

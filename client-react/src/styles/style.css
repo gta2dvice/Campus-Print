@@ -1806,6 +1806,7 @@ img[src=""] {
     }
 }
 /* Pricing responsive */
+@media (max-width: 768px) {
     .pricing-section {
         padding: 4rem 1.5rem;
     }
@@ -1831,6 +1832,7 @@ img[src=""] {
         width: 100%;
         justify-content: center;
     }
+}
 
 /* ══════════════════════════════════════════
    AUTH / PROFILE PAGES STYLING
