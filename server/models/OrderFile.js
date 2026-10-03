@@ -5,15 +5,18 @@ async function createFiles(orderId, files) {
     const ids = [];
     for (const f of files) {
         const [result] = await pool.execute(
-            `INSERT INTO order_files (order_id, original_name, stored_name, storage_path, mime_type, size_bytes)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO order_files (order_id, original_name, stored_name, storage_path, mime_type, size_bytes, printing_side, copies, color_mode)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 orderId,
                 f.originalname,
                 f.storedName || f.filename,
                 f.storagePath || null,
                 f.mimetype,
-                f.size || 0
+                f.size || 0,
+                f.printingSide || 'single',
+                f.copies || 1,
+                f.colorMode || 'bw'
             ]
         );
         ids.push(result.insertId);

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { setAuthRedirect } from '../lib/authRedirect';
 
 export default function ProtectedRoute({ children }) {
   const { user, session, loading } = useAuth();
@@ -10,8 +9,17 @@ export default function ProtectedRoute({ children }) {
 
   useEffect(() => {
     if (!loading && (!session || !user)) {
-      setAuthRedirect(location.pathname + location.search);
-      navigate('/login', { replace: true });
+      // Student routes are now public, so we don't redirect to /login for them.
+      // However, admin routes might still use this.
+      // But in App.jsx we removed ProtectedRoute from student routes.
+      // To be safe, we can check if the path starts with /admin or /super-admin.
+      if (location.pathname.startsWith('/admin') || location.pathname.startsWith('/super-admin')) {
+        navigate('/admin/login', { replace: true });
+      } else {
+        // For other routes, we just let them through or redirect to home.
+        // Since we are removing student auth, /login is gone.
+        navigate('/', { replace: true });
+      }
     }
   }, [loading, session, user, location, navigate]);
 

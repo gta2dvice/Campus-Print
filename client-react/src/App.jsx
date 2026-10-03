@@ -4,16 +4,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import Home from './pages/Home';
 import About from './pages/About';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Dashboard from './pages/Dashboard';
 import NewOrder from './pages/NewOrder';
 import SelectLocation from './pages/SelectLocation';
 import Ticket from './pages/Ticket';
-import CompleteProfile from './pages/CompleteProfile';
-import EditProfile from './pages/EditProfile';
 import OrderDetails from './pages/OrderDetails';
 
 import AdminLogin from './pages/admin/Login';
@@ -44,19 +37,12 @@ export default function App() {
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Protected Student Routes */}
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
-        <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-        <Route path="/order/:id" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
-        <Route path="/new-order" element={<ProtectedRoute><NewOrder /></ProtectedRoute>} />
-        <Route path="/select-location" element={<ProtectedRoute><SelectLocation /></ProtectedRoute>} />
-        <Route path="/ticket" element={<ProtectedRoute><Ticket /></ProtectedRoute>} />
+        {/* Student Guest Flow - Now Public */}
+        <Route path="/new-order" element={<NewOrder />} />
+        <Route path="/select-location" element={<SelectLocation />} />
+        <Route path="/ticket" element={<Ticket />} />
+        <Route path="/order/:id" element={<OrderDetails />} />
 
         {/* Shop Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />

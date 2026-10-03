@@ -1,19 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AuthModal from '../components/AuthModal';
 import PageBackground from '../components/PageBackground';
 import Footer from '../components/Footer';
-import { setAuthRedirect } from '../lib/authRedirect';
+import GuestDetailsModal from '../components/GuestDetailsModal';
 import useDocumentTitle from '../lib/useDocumentTitle';
+import {
+  MAX_FILE_BYTES,
+  MAX_ORDER_FILES,
+  flushSaveCurrentOrder,
+  loadCurrentOrder,
+  saveCurrentOrder,
+  scheduleSaveCurrentOrder,
+  storageErrorMessage,
+} from '../lib/orderStorage';
 import '../styles/style.css';
 
 const STUDENTS = [
   { name: 'Divye', branch: 'CSE Core', color: '59, 130, 246', review: 'Very fast printing and affordable pricing. Saved my semester submissions!' },
   { name: 'Kartike', branch: 'CSE AI-ML', color: '249, 115, 22', review: 'Upload system is smooth and no more long queues.' },
-  { name: 'Ananya', branch: 'ECE', color: '20, 184, 166', review: 'Clean prints and very quick service inside campus.' },
+  { name: 'Ananya', branch: 'Mechanical', color: '20, 184, 166', review: 'Clean prints and very quick service inside campus.' },
   { name: 'Bhargavii', branch: 'BCA', color: '239, 68, 68', review: 'Very fast printing and affordable pricing. Saved my semester submissions!' },
   { name: 'Kush', branch: 'CSE Core', color: '139, 92, 246', review: 'Upload system is smooth and no more long queues.' },
-  { name: 'Yashavii', branch: 'CSE AI-ML', color: '56, 189, 248', review: 'Upload system is smooth and no more long queues.' },
+  { name: 'Vartika', branch: 'CSE AI-ML', color: '56, 189, 248', review: 'Upload system is smooth and no more long queues.' },
 ];
 
 const ALLOWED_TYPES = ['application/pdf'];
@@ -32,13 +40,22 @@ export default function Home() {
   const heroTextRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const [files, setFiles] = useState([]); // [{ key, file, pages, estimated, copies }]
-  const [color, setColor] = useState('bw');
+  const [files, setFiles] = useState([]); // [{ key, file, pages, estimated, copies, printingSide, colorMode }]
   const [size, setSize] = useState('A4');
   const [printingSide, setPrintingSide] = useState('single');
+  const [classroomDelivery, setClassroomDelivery] = useState(false); // Verified state
   const [config, setConfig] = useState(null);
 
   const [bump, setBump] = useState(false);
+  const persistReadyRef = useRef(false);
+  const extraMetaRef = useRef({
+    guestDetails: null,
+    spiralBinding: false,
+    expressDelivery: false,
+    selectedLocationId: null,
+    selectedLocationName: null,
+    selectedTimeSlot: null,
+  });
 
   function formatSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
@@ -68,8 +85,16 @@ export default function Home() {
   async function addFiles(newFiles) {
     const accepted = [];
     for (const file of newFiles) {
+      if (files.length + accepted.length >= MAX_ORDER_FILES) {
+        alert('Max 10 files allowed.');
+        break;
+      }
       if (!ALLOWED_TYPES.includes(file.type)) {
         alert(`${file.name}: only PDF files are allowed.`);
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        alert(`${file.name}: files must be 20 MB or smaller.`);
         continue;
       }
       const clientPages = await countPdfPagesClient(file);
@@ -78,7 +103,9 @@ export default function Home() {
         file,
         pages: clientPages || null,
         estimated: false,
-        copies: 1
+        copies: 1,
+        printingSide: 'single',
+        colorMode: 'bw'
       });
     }
     if (accepted.length === 0) return;
@@ -122,7 +149,16 @@ export default function Home() {
   }
 
   function clearAllFiles() {
+    if (files.length === 0) return;
+    if (!window.confirm('Clear all uploaded files from this unfinished order?')) return;
     setFiles([]);
+  }
+
+  function updateFileColorMode(key, mode) {
+    setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, colorMode: mode } : f)));
+  }
+  function updateFilePrintingSide(key, side) {
+    setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, printingSide: side } : f)));
   }
 
   function updateFileCopies(key, delta) {
@@ -132,11 +168,20 @@ export default function Home() {
   const totalPages = files.reduce((sum, f) => sum + ((f.pages || 1) * f.copies), 0);
 
   function calcPrice() {
-    if (!config) return { basePrice: 0, a3Extra: 0, total: 0 };
-    const basePerPage = config.pricing[color];
-    const basePrice = totalPages * basePerPage;
-    const a3Extra = size === 'A3' ? totalPages * config.pricing.a3Extra : 0;
-    return { basePrice, a3Extra, total: basePrice + a3Extra };
+    const printingSubtotal = files.reduce((sum, f) => {
+      const rate = f?.colorMode === 'color' ? 5 : (f?.printingSide === 'double' ? 3 : 2);
+      const pages = f?.pages || 1;
+      const copies = f?.copies || 1;
+      return sum + (pages * copies * rate);
+    }, 0);
+
+    const deliveryCharge = classroomDelivery ? 10 : 0;
+
+    return {
+      basePrice: printingSubtotal,
+      a3Extra: 0,
+      total: printingSubtotal + deliveryCharge
+    };
   }
 
   const { basePrice, a3Extra, total } = calcPrice();
@@ -152,6 +197,57 @@ export default function Home() {
     }
     loadConfig();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const unfinished = await loadCurrentOrder();
+      if (cancelled) return;
+      if (unfinished) {
+        extraMetaRef.current = {
+          guestDetails: unfinished.guestDetails,
+          spiralBinding: unfinished.spiralBinding,
+          expressDelivery: unfinished.expressDelivery,
+          selectedLocationId: unfinished.selectedLocationId,
+          selectedLocationName: unfinished.selectedLocationName,
+          selectedTimeSlot: unfinished.selectedTimeSlot,
+          classroomDelivery: unfinished.classroomDelivery,
+        };
+        if (unfinished.files?.length) setFiles(unfinished.files);
+        setSize(unfinished.paperSize);
+        setPrintingSide(unfinished.printingSide);
+        setClassroomDelivery(unfinished.classroomDelivery || false);
+      }
+      try {
+        const savedGuest = JSON.parse(localStorage.getItem('cp_guest_details') || 'null');
+        if (savedGuest && !extraMetaRef.current.guestDetails) {
+          extraMetaRef.current.guestDetails = savedGuest;
+        }
+      } catch {
+        // localStorage unavailable
+      }
+      persistReadyRef.current = true;
+    })();
+    return () => {
+      cancelled = true;
+      persistReadyRef.current = false;
+      flushSaveCurrentOrder().catch(() => {});
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!persistReadyRef.current) return;
+    scheduleSaveCurrentOrder({
+      meta: {
+        ...extraMetaRef.current,
+        paperSize: size,
+        printingSide,
+        classroomDelivery,
+      },
+      files,
+      onError: (err) => alert(storageErrorMessage(err)),
+    });
+  }, [files, size, printingSide, classroomDelivery]);
 
   useEffect(() => {
     setBump(true);
@@ -225,38 +321,42 @@ export default function Home() {
 
   async function handleUploadClick(e) {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/auth/status', { credentials: 'include' });
-      const data = await res.json();
-      if (data.isLoggedIn) navigate('/new-order');
-      else { setAuthRedirect('/new-order'); setModalOpen(true); }
-    } catch {
-      setAuthRedirect('/new-order');
-      setModalOpen(true);
-    }
+    setModalOpen(true);
   }
 
   function scrollToId(id) {
     smoothScrollToElement(document.getElementById(id));
   }
 
+  async function persistHomeOrder(guestDetails) {
+    const meta = {
+      ...extraMetaRef.current,
+      guestDetails: guestDetails || extraMetaRef.current.guestDetails,
+      paperSize: size,
+      printingSide,
+      classroomDelivery,
+    };
+    extraMetaRef.current = meta;
+    await saveCurrentOrder({
+      meta,
+      files: files.map(f => ({ ...f, printingSide: f.printingSide || printingSide }))
+    });
+  }
+
   async function handleOrderClick() {
     try {
       localStorage.setItem('cp_pending_order', JSON.stringify({
-        color, size, printingSide,
+        size, printingSide,
       }));
     } catch {
       // localStorage unavailable
     }
     try {
-      const res = await fetch('/api/auth/status', { credentials: 'include' });
-      const data = await res.json();
-      if (data.isLoggedIn) navigate('/new-order');
-      else { setAuthRedirect('/new-order'); setModalOpen(true); }
-    } catch {
-      setAuthRedirect('/new-order');
-      setModalOpen(true);
+      await persistHomeOrder();
+    } catch (err) {
+      alert(storageErrorMessage(err));
     }
+    setModalOpen(true);
   }
 
   return (
@@ -326,7 +426,7 @@ export default function Home() {
                     <span className="detail-icon">📞</span>
                     <div>
                       <strong>Contact</strong>
-                      <p>+91 9457311377<br />printcampus@college.edu</p>
+                      <p>+91 9457311377<br />kartikedivye@gmail.com</p>
                     </div>
                   </div>
                 </div>
@@ -343,7 +443,7 @@ export default function Home() {
                     <div className="pin-pulse"></div>
                   </div>
                   <p className="map-label">Print Campus<br /><span>Main Academic Block</span></p>
-                  <a href="https://maps.app.goo.gl/CV2jsxgn5Jkpvqkk7" target="_blank" rel="noreferrer" className="btn btn-primary map-btn">
+                  <a href="https://maps.app.goo.gl/5xF6EL14PGSuvids6" target="_blank" rel="noreferrer" className="btn btn-primary map-btn">
                     Open in Maps →
                   </a>
                 </div>
@@ -391,55 +491,102 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="pricing-cards-row">
-                <div className="pricing-card" id="pcColorCard">
+              <div className="pricing-cards-row" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '1.5rem',
+                width: '100%',
+                maxWidth: '800px',
+                margin: '0 auto'
+              }}>
+                <div className="pricing-card" id="pcColorCard" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div className="pc-icon">🖨️</div>
                   <h3 className="pc-title">Color Mode</h3>
-                  <div className="pc-toggle-group" id="pcColorGroup">
-                    <button className={`pc-chip${color === 'bw' ? ' active' : ''}`} onClick={() => setColor('bw')}>
-                      B&amp;W
-                      <span className="pc-chip-price">₹2 / page</span>
-                    </button>
-                    <button className={`pc-chip${color === 'color' ? ' active' : ''}`} onClick={() => setColor('color')}>
-                      Color
-                      <span className="pc-chip-price">₹5 / page</span>
-                    </button>
+                  <div className="pc-info-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', paddingBottom: '0.5rem' }}>
+                    <div className="pc-info-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      <span>B&amp;W</span>
+                      <span className="pc-info-price" style={{ fontWeight: '600' }}>₹2 / page</span>
+                    </div>
+                    <div className="pc-info-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      <span>Color</span>
+                      <span className="pc-info-price" style={{ fontWeight: '600' }}>₹5 / page</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="pricing-card" id="pcSizeCard">
+                <div className="pricing-card" id="pcSizeCard" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div className="pc-icon">📄</div>
                   <h3 className="pc-title">Paper Size</h3>
-                  <div className="pc-toggle-group" id="pcSizeGroup">
-                    <button className={`pc-chip${size === 'A4' ? ' active' : ''}`} onClick={() => setSize('A4')}>
-                      A4
-                      <span className="pc-chip-price">Standard</span>
-                    </button>
-                    <button className={`pc-chip${size === 'A3' ? ' active' : ''}`} onClick={() => setSize('A3')}>
-                      A3
-                      <span className="pc-chip-price">+₹10</span>
-                    </button>
+                  <div className="pc-info-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', paddingBottom: '0.5rem' }}>
+                    <div className="pc-info-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      <span>A4</span>
+                      <span className="pc-info-price" style={{ fontWeight: '600' }}>Standard</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="pricing-card" id="pcSideCard">
+                <div className="pricing-card" id="pcSideCard" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div className="pc-icon">↕️</div>
                   <h3 className="pc-title">Printing Side</h3>
-                  <div className="pc-toggle-group" id="pcSideGroup">
-                    <button className={`pc-chip${printingSide === 'single' ? ' active' : ''}`} onClick={() => setPrintingSide('single')}>
-                      Single
-                      <span className="pc-chip-price">One Side</span>
-                    </button>
-                    <button className={`pc-chip${printingSide === 'double' ? ' active' : ''}`} onClick={() => setPrintingSide('double')}>
-                      Double
-                      <span className="pc-chip-price">Both Sides</span>
-                    </button>
+                  <div className="pc-info-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', paddingBottom: '0.5rem' }}>
+                    <div className="pc-info-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      <span>Single</span>
+                      <span className="pc-info-price" style={{ fontWeight: '600' }}>One Side</span>
+                    </div>
+                    <div className="pc-info-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      <span>Double</span>
+                      <span className="pc-info-price" style={{ fontWeight: '600' }}>Both Sides</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pricing-card" id="pcDeliveryCard" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div className="pc-icon">🚚</div>
+                  <h3 className="pc-title">Classroom Delivery</h3>
+                  <div className="pc-info-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', paddingBottom: '0.5rem' }}>
+                    <div className="pc-info-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      <span>No</span>
+                      <span className="pc-info-price" style={{ fontWeight: '600' }}>Free</span>
+                    </div>
+                    <div className="pc-info-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      <span>Yes</span>
+                      <span className="pc-info-price" style={{ fontWeight: '600' }}>₹10</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="upload-interactive-section" style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
-                <div className="upload-zone-home"
+                                                                              <div className="upload-interactive-section" style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+                  <div className="delivery-toggle-wrap" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1rem',
+                    padding: '0.75rem 1.5rem',
+                    background: 'white',
+                    borderRadius: '2rem',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                    border: '1px solid #eee',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#666' }}>Classroom Delivery:</span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        className={`btn btn-sm ${!classroomDelivery ? 'btn-primary' : 'btn-outline'}`}
+                        onClick={() => setClassroomDelivery(false)}
+                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem' }}
+                      >
+                        No (Free)
+                      </button>
+                      <button
+                        className={`btn btn-sm ${classroomDelivery ? 'btn-primary' : 'btn-outline'}`}
+                        onClick={() => setClassroomDelivery(true)}
+                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem' }}
+                      >
+                        Yes (+₹10)
+                      </button>
+                    </div>
+                  </div><div className="upload-zone-home"
                      style={{
                        width: '100%',
                        maxWidth: '600px',
@@ -486,26 +633,71 @@ export default function Home() {
                         borderRadius: '0.75rem',
                         boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
                         border: '1px solid #eee',
-                        gap: '1rem'
+                        gap: '1rem',
+                        flexDirection: 'column',
+                        alignItems: 'stretch'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-                          <span style={{ fontSize: '1.2rem' }}>📄</span>
-                          <div>
-                            <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{f.file.name}</div>
-                            <div style={{ fontSize: '0.8rem', color: '#666' }}>{formatSize(f.file.size)} · {f.pages === null ? 'Detecting...' : `${f.pages} pages`}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+                            <span style={{ fontSize: '1.2rem' }}>📄</span>
+                            <div>
+                              <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{f.file.name}</div>
+                              <div style={{ fontSize: '0.8rem', color: '#666' }}>{formatSize(f.file.size)} · {f.pages === null ? 'Detecting...' : `${f.pages} pages`}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div className="counter" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f3f4f6', padding: '0.25rem', borderRadius: '0.5rem' }}>
+                              <button className="counter-btn" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }} onClick={() => updateFileCopies(f.key, -1)}>−</button>
+                              <span style={{ minWidth: '1.5rem', textAlign: 'center', fontSize: '0.9rem', fontWeight: '600' }}>{f.copies}</span>
+                              <button className="counter-btn" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }} onClick={() => updateFileCopies(f.key, 1)}>+</button>
+                            </div>
+                            <button onClick={() => removeFile(f.key)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div className="counter" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f3f4f6', padding: '0.25rem', borderRadius: '0.5rem' }}>
-                            <button className="counter-btn" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }} onClick={() => updateFileCopies(f.key, -1)}>−</button>
-                            <span style={{ minWidth: '1.5rem', textAlign: 'center', fontSize: '0.9rem', fontWeight: '600' }}>{f.copies}</span>
-                            <button className="counter-btn" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }} onClick={() => updateFileCopies(f.key, 1)}>+</button>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: '#666' }}>Color Mode</span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                className={`btn btn-sm ${f.colorMode === 'bw' ? 'btn-primary' : 'btn-outline'}`}
+                                onClick={() => updateFileColorMode(f.key, 'bw')}
+                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                              >
+                                B&amp;W (₹2/pg)
+                              </button>
+                              <button
+                                className={`btn btn-sm ${f.colorMode === 'color' ? 'btn-primary' : 'btn-outline'}`}
+                                onClick={() => updateFileColorMode(f.key, 'color')}
+                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                              >
+                                Color (₹5/pg)
+                              </button>
+                            </div>
                           </div>
-                          <button onClick={() => removeFile(f.key)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: '#666' }}>Printing Side</span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                className={`btn btn-sm ${f.printingSide === 'single' ? 'btn-primary' : 'btn-outline'}`}
+                                onClick={() => updateFilePrintingSide(f.key, 'single')}
+                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                              >
+                                Single Side (₹2/pg)
+                              </button>
+                              <button
+                                className={`btn btn-sm ${f.printingSide === 'double' ? 'btn-primary' : 'btn-outline'}`}
+                                onClick={() => updateFilePrintingSide(f.key, 'double')}
+                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                              >
+                                Both Sides (₹3/pg)
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
-                    <button className="btn btn-secondary" style={{ width: 'fit-content', alignSelf: 'center', fontSize: '0.85rem' }} onClick={() => fileInputRef.current?.click()}>+ Add More PDFs</button>
+                    <button className="btn btn-secondary" style={{ width: 'fit-content', alignHelf: 'center', fontSize: '0.85rem' }} onClick={() => fileInputRef.current?.click()}>+ Add More PDFs</button>
                   </div>
                 )}
               </div>
@@ -515,13 +707,11 @@ export default function Home() {
                   <div className="ptc-breakdown" id="pcBreakdown">
                     <span className="ptc-line"><span className="ptc-line-label">Total Pages</span><span className="ptc-line-val">{totalPages} pages</span></span>
                     <span className="ptc-line"><span className="ptc-line-label">Printing Charges</span><span className="ptc-line-val">₹{basePrice + a3Extra}</span></span>
-                    <span className="ptc-line"><span className="ptc-line-label">Service Charge</span><span className="ptc-line-val">₹{config?.pricing?.serviceCharge || 0}</span></span>
-                    <span className="ptc-line"><span className="ptc-line-label">Delivery Charge</span><span className="ptc-line-val">₹{config?.pricing?.deliveryCharge || 0}</span></span>
                   </div>
                   <div className="ptc-divider"></div>
                   <div className="ptc-total-row">
                     <span className="ptc-total-label">Estimated Total</span>
-                    <span className={`ptc-total-amount${bump ? ' bump' : ''}`} id="pcTotalAmount">₹{total + (config?.pricing?.serviceCharge || 0) + (config?.pricing?.deliveryCharge || 0)}</span>
+                    <span className={`ptc-total-amount${bump ? ' bump' : ''}`} id="pcTotalAmount">₹{basePrice + a3Extra}</span>
                   </div>
                   <p className="ptc-note">Final price calculated per page after upload. Copies can be set in the order form.</p>
                   <button className="btn btn-primary ptc-order-btn" id="ptcOrderBtn" disabled={files.length === 0} onClick={handleOrderClick}>
@@ -535,7 +725,30 @@ export default function Home() {
         </main>
       </div>
 
-      <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} />
-	</>
+      {/* Guest Details Modal for guest flow */}
+      <GuestDetailsModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={async (details) => {
+          const guest = {
+            fullName: details.fullName,
+            phone: details.phone,
+            classroom: details.classroom,
+          };
+          try {
+            localStorage.setItem('cp_guest_details', JSON.stringify(guest));
+          } catch {
+            // localStorage unavailable
+          }
+          try {
+            await persistHomeOrder(guest);
+          } catch (err) {
+            alert(storageErrorMessage(err));
+          }
+          setModalOpen(false);
+          navigate('/new-order');
+        }}
+      />
+		</>
   );
 }

@@ -19,7 +19,7 @@ export default function DashboardSidebar({ userName }) {
     <aside className="sidebar">
       <div className="sidebar-header">
         <Link to="/" className="logo-link">
-          <img src="/cp.png" alt="CampusPrint Logo" className="sidebar-logo" />
+          <img src="/assets/cp_bg.png" alt="CampusPrint Logo" className="sidebar-logo" />
         </Link>
       </div>
 

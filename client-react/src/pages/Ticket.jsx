@@ -18,23 +18,28 @@ export default function Ticket() {
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    if (!orderId) { navigate('/dashboard'); return; }
+    if (!orderId) { navigate('/'); return; }
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, { credentials: 'include' });
-        if (!res.ok) { if (!cancelled) navigate('/dashboard'); return; }
+        if (!res.ok) { if (!cancelled) navigate('/'); return; }
         const data = await res.json();
         if (!cancelled) setOrder(data);
       } catch {
-        if (!cancelled) navigate('/dashboard');
+        if (!cancelled) navigate('/');
       }
     })();
     return () => { cancelled = true; };
   }, [orderId, navigate]);
 
-  const name = (order?.customer_email || '').split('@')[0];
-  const displayName = name ? name.charAt(0).toUpperCase() + name.slice(1) : (order?.customer_email || '—');
+  function maskPhone(phone) {
+    if (!phone) return '—';
+    if (phone.length < 10) return phone;
+    return `${phone.slice(0, 3)}****${phone.slice(-3)}`;
+  }
+
+  const displayName = order?.guest_full_name || (order?.customer_email ? order.customer_email.split('@')[0] : 'Guest');
 
   return (
     <>
@@ -96,7 +101,33 @@ export default function Ticket() {
                   </div>
                   <div className="info-details">
                     <span className="info-label">NAME</span>
-                    <span className="info-value">{displayName || '—'}</span>
+                    <span className="info-value">{displayName}</span>
+                  </div>
+                </div>
+
+                <div className="ticket-info-row">
+                  <div className="info-icon-badge">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-2.18-2 2 2 0 0 1 2-2h19.5a2 2 0 0 1 2 2z"></path>
+                      <line x1="8" y1="10" x2="16" y2="10"></line>
+                    </svg>
+                  </div>
+                  <div className="info-details">
+                    <span className="info-label">PHONE</span>
+                    <span className="info-value">{maskPhone(order?.guest_phone)}</span>
+                  </div>
+                </div>
+
+                <div className="ticket-info-row">
+                  <div className="info-icon-badge">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                  </div>
+                  <div className="info-details">
+                    <span className="info-label">CLASS / SECTION</span>
+                    <span className="info-value">{order?.guest_classroom || '—'}</span>
                   </div>
                 </div>
 

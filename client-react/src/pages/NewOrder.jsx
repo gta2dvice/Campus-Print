@@ -5,6 +5,16 @@ import Toast from '../components/Toast';
 import useToast from '../lib/useToast';
 import useBodyClass from '../lib/useBodyClass';
 import useDocumentTitle from '../lib/useDocumentTitle';
+import {
+  MAX_FILE_BYTES,
+  MAX_ORDER_FILES,
+  clearCompletedOrder,
+  flushSaveCurrentOrder,
+  loadCurrentOrder,
+  removeCurrentOrder,
+  scheduleSaveCurrentOrder,
+  storageErrorMessage,
+} from '../lib/orderStorage';
 import '../styles/style.css';
 import '../styles/dashboard.css';
 
@@ -31,6 +41,11 @@ const LOCATIONS = [
   {
     id: 'hostel-gate', name: 'Hostel Gate', sub: 'Hostel entrance pickup', icon: (
       <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>
+    )
+  },
+  {
+    id: 'academic-block', name: 'Academic Block', sub: 'Academic Block pickup', icon: (
+      <><path d="M3 21h18M3 7v14M21 7v14M9 7v14M15 7v14M3 7h18M3 11h18M3 15h18" /><rect x="2" y="2" width="20" height="20" rx="2" /></>
     )
   },
 ];
@@ -85,16 +100,16 @@ export default function NewOrder() {
 
   const [currentUser, setCurrentUser] = useState(null);
   const [displayName, setDisplayName] = useState('');
+  const [guestDetails, setGuestDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
 
   // ── Order configuration state ──
-  const [files, setFiles] = useState([]); // [{ key, file, pages, estimated, copies }]
-  const [colorOption, setColorOption] = useState('bw');
+  const [files, setFiles] = useState([]); // [{ key, file, pages, estimated, copies, printingSide, colorMode }]
   const [paperSize, setPaperSize] = useState('A4');
-  const [printingSide, setPrintingSide] = useState('single'); // 'single' | 'double' — mandatory
   const [spiralBinding, setSpiralBinding] = useState(false);
   const [expressDelivery, setExpressDelivery] = useState(false);
+  const [classroomDelivery, setClassroomDelivery] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -108,46 +123,133 @@ export default function NewOrder() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [locationStatuses, setLocationStatuses] = useState([]);
   const [paying, setPaying] = useState(false);
+  const persistReadyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
+        const unfinished = await loadCurrentOrder();
+        if (cancelled) return;
+
+        if (unfinished) {
+          if (unfinished.files?.length) {
+            const restoredKeys = unfinished.files.map((entry) => Number(entry.key)).filter((n) => Number.isFinite(n));
+            if (restoredKeys.length) fileKeySeq = Math.max(fileKeySeq, ...restoredKeys);
+            setFiles(unfinished.files);
+          }
+          setPaperSize(unfinished.paperSize);
+          setSpiralBinding(unfinished.spiralBinding);
+          setExpressDelivery(unfinished.expressDelivery);
+          setClassroomDelivery(unfinished.classroomDelivery || false);
+          setSelectedLocationId(unfinished.selectedLocationId);
+          setSelectedLocationName(unfinished.selectedLocationName);
+          setSelectedTimeSlot(unfinished.selectedTimeSlot);
+        }
+
+        // 1. Load Guest Details from localStorage (or unfinished order)
+        let savedGuest = JSON.parse(localStorage.getItem('cp_guest_details') || 'null');
+        if (!savedGuest && unfinished?.guestDetails) {
+          savedGuest = unfinished.guestDetails;
+          try {
+            localStorage.setItem('cp_guest_details', JSON.stringify(savedGuest));
+          } catch {
+            // localStorage unavailable
+          }
+        }
+        if (savedGuest) {
+          setGuestDetails(savedGuest);
+          setDisplayName(savedGuest.fullName || savedGuest.name);
+        }
+
+        try {
+          const pending = JSON.parse(localStorage.getItem('cp_pending_order') || 'null');
+          if (pending) {
+            if (pending.color === 'bw' || pending.color === 'color') setColorOption(pending.color);
+            if (pending.size === 'A4' || pending.size === 'A3') setPaperSize(pending.size);
+            setSpiralBinding(!!pending.spiral);
+            setExpressDelivery(!!pending.express);
+            localStorage.removeItem('cp_pending_order');
+          }
+        } catch {
+          // ignore malformed/unavailable localStorage data
+        }
+
+        // 2. Load Auth Status (keep for Admin/SuperAdmin if applicable, but students are guest now)
         const res = await fetch('/api/auth/status', { credentials: 'include' });
         const data = await res.json();
-        if (!data.isLoggedIn) { navigate('/'); return; }
+
+        if (!data.isLoggedIn && !savedGuest) {
+          navigate('/');
+          return;
+        }
+
         if (cancelled) return;
         setCurrentUser(data);
-        const name = (data.email || '').split('@')[0];
-        setDisplayName(name.charAt(0).toUpperCase() + name.slice(1));
+        if (data.isLoggedIn && !savedGuest) {
+          const name = (data.email || '').split('@')[0];
+          setDisplayName(name.charAt(0).toUpperCase() + name.slice(1));
+        }
 
         const configRes = await fetch('/api/orders/config', { credentials: 'include' });
         if (configRes.ok) setConfig(await configRes.json());
       } catch {
-        navigate('/');
+        if (!localStorage.getItem('cp_guest_details')) {
+          navigate('/');
+        }
         return;
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        persistReadyRef.current = true;
+        setLoading(false);
+      }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      persistReadyRef.current = false;
+      flushSaveCurrentOrder().catch(() => {});
+    };
   }, [navigate]);
 
-  // ── Prefill from home-page customizer (carried through login) ──
   useEffect(() => {
-    try {
-      const pending = JSON.parse(localStorage.getItem('cp_pending_order') || 'null');
-      if (pending) {
-        if (pending.color === 'bw' || pending.color === 'color') setColorOption(pending.color);
-        if (pending.size === 'A4' || pending.size === 'A3') setPaperSize(pending.size);
-        setSpiralBinding(!!pending.spiral);
-        setExpressDelivery(!!pending.express);
-        localStorage.removeItem('cp_pending_order');
-      }
-    } catch {
-      // ignore malformed/unavailable localStorage data
-    }
-  }, []);
+    // Temporarily disabled to diagnose runtime crash
+    // if (!persistReadyRef.current) return;
+    // if (skipPersistRef.current) {
+    //   skipPersistRef.current = false;
+    //   return;
+    // }
+    // scheduleSaveCurrentOrder({
+    //   meta: {
+    //     guestDetails,
+    //     paperSize,
+    //     spiralBinding,
+    //     expressDelivery,
+    //     classroomDelivery,
+    //     selectedLocationId,
+    //     selectedLocationName,
+    //     selectedTimeSlot,
+    //   },
+    //   files,
+    //   onError: (err) => {
+    //     if (typeof showToast === 'function') {
+    //       showToast(storageErrorMessage(err), 'error');
+    //     } else if (showToastRef.current) {
+    //       showToastRef.current(storageErrorMessage(err), 'error');
+    //     }
+    //   },
+    // });
+  }, [
+    guestDetails,
+    files,
+    paperSize,
+    spiralBinding,
+    expressDelivery,
+    classroomDelivery,
+    selectedLocationId,
+    selectedLocationName,
+    selectedTimeSlot,
+  ]);
 
   async function countPdfPagesClient(file) {
     if (file.type !== 'application/pdf') return null;
@@ -171,9 +273,13 @@ export default function NewOrder() {
   async function addFiles(newFiles) {
     const accepted = [];
     for (const file of newFiles) {
-      if (files.length + accepted.length >= 10) {
+      if (files.length + accepted.length >= MAX_ORDER_FILES) {
         showToast('Max 10 files allowed.', 'error');
         break;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        showToast(`${file.name}: files must be 20 MB or smaller.`, 'error');
+        continue;
       }
       if (!isFileSupported(file)) {
         showToast(`${file.name}: unsupported type. Supported: PDF, DOCX, DOC, PNG, JPG.`, 'error');
@@ -190,7 +296,9 @@ export default function NewOrder() {
         file,
         pages: clientPages || null,
         estimated: false,
-        copies: 1
+        copies: 1,
+        printingSide: 'single',
+        colorMode: 'bw'
       });
     }
     if (accepted.length === 0) return;
@@ -244,12 +352,42 @@ export default function NewOrder() {
     setFiles((prev) => prev.filter((f) => f.key !== key));
   }
 
+  function updateFilePrintingSide(key, side) {
+    setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, printingSide: side } : f)));
+  }
+
+  function updateFileColorMode(key, mode) {
+    setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, colorMode: mode } : f)));
+  }
+
   function updateFileCopies(key, delta) {
     setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, copies: Math.max(1, f.copies + delta) } : f)));
   }
 
   function clearAllFiles() {
+    if (files.length === 0) return;
+    if (!window.confirm('Clear this unfinished order? Uploaded files and saved selections will be removed from this browser.')) {
+      return;
+    }
+    skipPersistRef.current = true;
     setFiles([]);
+    setPaperSize('A4');
+    setSpiralBinding(false);
+    setExpressDelivery(false);
+    setSelectedLocationId(null);
+    setSelectedLocationName(null);
+    setSelectedTimeSlot(null);
+    removeCurrentOrder().catch((err) => showToast(storageErrorMessage(err), 'error'));
+  }
+
+  async function finishSuccessfulOrder(orderId) {
+    try {
+      await clearCompletedOrder();
+    } catch {
+      // Server order already succeeded; clearing the local draft is best-effort.
+    }
+    closeBookingModal();
+    navigate(`/ticket?id=${orderId}`);
   }
 
   const totalPagesCount = files.reduce((sum, f) => sum + ((f.pages || 1) * f.copies), 0);
@@ -257,17 +395,35 @@ export default function NewOrder() {
 
   function calcPrice() {
     if (!config) return { pages: 0, base: 0, a3Extra: 0, serviceCharge: 0, deliveryCharge: 0, total: 0 };
-    const pages = totalPagesCount;
-    const basePerPage = config.pricing[colorOption];
-    const base = pages * basePerPage;
-    const a3Extra = paperSize === 'A3' ? pages * config.pricing.a3Extra : 0;
-    const serviceCharge = config.pricing.serviceCharge;
-    const deliveryCharge = config.pricing.deliveryCharge;
-    return { pages, base, a3Extra, serviceCharge, deliveryCharge, total: base + a3Extra + serviceCharge + deliveryCharge };
+
+    const printingSubtotal = files.reduce((sum, f) => {
+      const rate = f?.colorMode === 'color' ? 5 : (f?.printingSide === 'double' ? 3 : 2);
+      const pages = f?.pages || 1;
+      const copies = f?.copies || 1;
+      return sum + (pages * copies * rate);
+    }, 0);
+
+    const serviceCharge = 3;
+    let deliveryCharge = 0;
+    if (selectedLocationId === 'hostel-gate') {
+      deliveryCharge = 4;
+    } else if (classroomDelivery) {
+      deliveryCharge = 10;
+    }
+
+    return {
+      pages: totalPagesCount || 0,
+      base: printingSubtotal || 0,
+      a3Extra: 0,
+      serviceCharge,
+      deliveryCharge,
+      total: (printingSubtotal || 0) + serviceCharge + deliveryCharge
+    };
   }
 
   const p = calcPrice();
   const hasFiles = files.length > 0;
+  const filesMissingSettings = files.some(f => !f.printingSide || !f.colorMode);
 
   function openBookingModal() {
     if (!hasFiles) { showToast('Please upload at least one file to continue.', 'error'); return; }
@@ -360,20 +516,49 @@ export default function NewOrder() {
     setSlotsLoading(false);
   }
 
+  function handleLocationSelect(locId, locName) {
+    setSelectedLocationId(locId);
+    setSelectedLocationName(locName);
+
+    if (locId === 'academic-block') {
+      // Trigger confirmation for classroom delivery
+      const wantsDelivery = window.confirm('Do you want Classroom Delivery for an additional ₹10?');
+      setClassroomDelivery(wantsDelivery);
+    } else {
+      // Automatically disable for other locations
+      setClassroomDelivery(false);
+    }
+  }
+
   function buildOrderFormData() {
     const formData = new FormData();
-    formData.append('colorOption', colorOption);
     formData.append('paperSize', paperSize);
-    formData.append('printingSide', printingSide);
     formData.append('totalPages', p.pages);
     const totalCopies = files.reduce((sum, f) => sum + f.copies, 0);
     formData.append('copies', totalCopies);
     formData.append('spiralBinding', 'false');
     formData.append('expressDelivery', 'false');
+    formData.append('classroomDelivery', classroomDelivery);
     formData.append('totalPrice', p.total);
     formData.append('collectionLocationId', selectedLocationId);
     formData.append('collectionLocation', selectedLocationName);
     formData.append('collectionTime', selectedTimeSlot);
+
+    // Guest Details
+    formData.append('fullName', guestDetails?.fullName || '');
+    formData.append('phone', guestDetails?.phone || '');
+    formData.append('classroom', guestDetails?.classroom || '');
+
+    // Per-file settings for backend verification and storage
+    const fileSettings = files.map(f => ({
+      key: f.key,
+      pages: f.pages,
+      copies: f.copies,
+      printingSide: f.printingSide,
+      colorMode: f.colorMode || 'bw'
+    }));
+    formData.append('fileSettings', JSON.stringify(fileSettings));
+
     files.forEach((f) => formData.append('files', f.file));
     return formData;
   }
@@ -384,8 +569,7 @@ export default function NewOrder() {
       const res = await fetch('/api/orders/payment/simulate', { method: 'POST', credentials: 'include', body: buildOrderFormData() });
       const data = await res.json();
       if (res.ok) {
-        closeBookingModal();
-        navigate(`/ticket?id=${data.id}`);
+        await finishSuccessfulOrder(data.id);
       } else {
         showToast(data.message || 'Failed to place order.', 'error');
         setPaying(false);
@@ -402,8 +586,7 @@ export default function NewOrder() {
     const verifyRes = await fetch('/api/orders/payment/verify', { method: 'POST', credentials: 'include', body: formData });
     const verifyData = await verifyRes.json();
     if (verifyRes.ok) {
-      closeBookingModal();
-      navigate(`/ticket?id=${verifyData.id}`);
+      await finishSuccessfulOrder(verifyData.id);
       return;
     }
     showToast(verifyData.message || 'Payment could not be confirmed. If money was deducted, contact support.', 'error');
@@ -416,16 +599,38 @@ export default function NewOrder() {
       return;
     }
     if (!hasFiles) { showToast('Please upload at least one file to continue.', 'error'); return; }
-    if (!printingSide) { showToast('Please choose single-sided or double-sided printing.', 'error'); return; }
+    if (filesMissingSettings) { showToast('Please choose printing settings for all files.', 'error'); return; }
+
+    // Location-based classroom validation
+    const needsClassroom = ['main-gate', 'academic-block', 'classroom-delivery'].includes(selectedLocationId) || classroomDelivery;
+    if ((needsClassroom || classroomDelivery) && (!guestDetails?.classroom || !guestDetails.classroom.trim())) {
+      showToast('Please enter your classroom/room number.', 'error');
+      return;
+    }
 
     setPaying(true);
+
 
     try {
       const createRes = await fetch('/api/orders/payment/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ totalPrice: p.total }),
+        body: JSON.stringify({
+          totalPrice: p.total,
+          fullName: guestDetails?.fullName || '',
+          phone: guestDetails?.phone || '',
+          classroom: guestDetails?.classroom || '',
+          classroomDelivery: classroomDelivery,
+          collectionLocationId: selectedLocationId,
+          fileSettings: JSON.stringify(files.map(f => ({
+            key: f.key,
+            pages: f.pages,
+            copies: f.copies,
+            printingSide: f.printingSide,
+            colorMode: f.colorMode || 'bw'
+          }))),
+        }),
       });
 
       const createData = await createRes.json().catch(() => ({}));
@@ -482,7 +687,7 @@ export default function NewOrder() {
   let summaryNote = '';
   if (!hasFiles) summaryNote = 'Please upload at least one file to continue.';
   else if (pagesStillDetecting) summaryNote = 'Detecting page count…';
-  else if (!printingSide) summaryNote = 'Please choose single-sided or double-sided printing.';
+  else if (filesMissingSettings) summaryNote = 'Please choose printing settings for all files.';
 
   return (
     <>
@@ -561,22 +766,76 @@ export default function NewOrder() {
                         } else {
                           pagesText = `${f.pages} page${f.pages > 1 ? 's' : ''}${f.estimated ? ' (estimated)' : ''}`;
                         }
+                        const pdfTotal = (f.pages || 1) * (f.copies || 1) * (f.printingSide === 'double' ? 3 : 2);
                         return (
-                          <div className="file-item" key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderBottom: '1px solid #eee', gap: '1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-                              <div className="file-icon" style={{ fontSize: '1.5rem' }}>📄</div>
-                              <div className="file-item-info">
-                                <div className="file-item-name" style={{ fontWeight: '600' }}>{f.file.name}</div>
-                                <div className="file-item-size" style={{ fontSize: '0.8rem', color: '#666' }}>{formatSize(f.file.size)} · {pagesText}</div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                              <div className="counter" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <button className="counter-btn" onClick={() => updateFileCopies(f.key, -1)}>−</button>
-                                <span className="counter-value" style={{ minWidth: '1.5rem', textAlign: 'center' }}>{f.copies}</span>
-                                <button className="counter-btn" onClick={() => updateFileCopies(f.key, 1)}>+</button>
+                          <div className="file-item" key={f.key} style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            padding: '1rem',
+                            borderBottom: '1px solid #eee',
+                            gap: '0.75rem',
+                            background: '#f9fafb',
+                            borderRadius: '8px',
+                            marginBottom: '0.75rem'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+                                <div className="file-icon" style={{ fontSize: '1.5rem' }}>📄</div>
+                                <div className="file-item-info">
+                                  <div className="file-item-name" style={{ fontWeight: '600' }}>{f.file.name}</div>
+                                  <div className="file-item-size" style={{ fontSize: '0.8rem', color: '#666' }}>{formatSize(f.file.size)} · {pagesText}</div>
+                                </div>
                               </div>
                               <button className="file-remove" title="Remove" onClick={() => removeFile(f.key)}>✕</button>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingLeft: '2.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                                <div className="counter" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.85rem', color: '#666' }}>Copies:</span>
+                                  <button className="counter-btn" onClick={() => updateFileCopies(f.key, -1)}>−</button>
+                                  <span className="counter-value" style={{ minWidth: '1.5rem', textAlign: 'center' }}>{f.copies || 1}</span>
+                                  <button className="counter-btn" onClick={() => updateFileCopies(f.key, 1)}>+</button>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <button
+                                    className={`btn btn-sm ${f.printingSide === 'single' ? 'btn-primary' : 'btn-outline'}`}
+                                    onClick={() => updateFilePrintingSide(f.key, 'single')}
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                  >
+                                    Single Side (₹2)
+                                  </button>
+                                  <button
+                                    className={`btn btn-sm ${f.printingSide === 'double' ? 'btn-primary' : 'btn-outline'}`}
+                                    onClick={() => updateFilePrintingSide(f.key, 'double')}
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                  >
+                                    Both Sides (₹3)
+                                  </button>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                                <span style={{ fontSize: '0.85rem', color: '#666' }}>Color Mode:</span>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <button
+                                    className={`btn btn-sm ${f.colorMode === 'bw' ? 'btn-primary' : 'btn-outline'}`}
+                                    onClick={() => updateFileColorMode(f.key, 'bw')}
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                  >
+                                    B&amp;W (₹2)
+                                  </button>
+                                  <button
+                                    className={`btn btn-sm ${f.colorMode === 'color' ? 'btn-primary' : 'btn-outline'}`}
+                                    onClick={() => updateFileColorMode(f.key, 'color')}
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                  >
+                                    Color (₹5)
+                                  </button>
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'right', fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)' }}>
+                                PDF Total: ₹{pdfTotal}
+                              </div>
                             </div>
                           </div>
                         );
@@ -600,38 +859,12 @@ export default function NewOrder() {
 
                 <div className="settings-grid">
                   <div className="setting-group">
-                    <span className="setting-label">Color Option</span>
-                    <div className="toggle-group" id="colorGroup">
-                      <button className={toggleClass(colorOption === 'bw')} onClick={() => setColorOption('bw')}>B&amp;W (₹2/pg)</button>
-                      <button className={toggleClass(colorOption === 'color')} onClick={() => setColorOption('color')}>Color (₹5/pg)</button>
-                    </div>
-                  </div>
-
-                  <div className="setting-group">
                     <span className="setting-label">Paper Size</span>
                     <div className="toggle-group" id="sizeGroup">
                       <button className={toggleClass(paperSize === 'A4')} onClick={() => setPaperSize('A4')}>A4</button>
-                      <button className={toggleClass(paperSize === 'A3')} onClick={() => setPaperSize('A3')}>A3 (+₹10)</button>
                     </div>
                   </div>
-
-                  <div className="setting-group">
-                    <span className="setting-label">Printing Side <span style={{ color: '#ef4444' }}>*</span></span>
-                    <div className="toggle-group" id="sideGroup">
-                      <button className={toggleClass(printingSide === 'single')} onClick={() => setPrintingSide('single')}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600' }}>Single-Sided</span>
-                          <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Print on one side</span>
-                        </div>
-                      </button>
-                      <button className={toggleClass(printingSide === 'double')} onClick={() => setPrintingSide('double')}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600' }}>Double-Sided</span>
-                          <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Print on both sides</span>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
+                </div>
 
 
                 </div>
@@ -670,9 +903,8 @@ export default function NewOrder() {
               </button>
               <p className="summary-note">{summaryNote}</p>
             </div>
-          </div>
-        </main>
-      </div>
+          </main>
+        </div>
 
       {/* Booking flow: Time → Location → Review */}
       <div className="booking-overlay" hidden={!modalOpen} onClick={(e) => { if (e.target === e.currentTarget) closeBookingModal(); }}>
@@ -778,13 +1010,20 @@ export default function NewOrder() {
                     type="button"
                     className={classes}
                     disabled={isDisabled}
-                    onClick={() => { setSelectedLocationId(loc.id); setSelectedLocationName(loc.name); }}
+                    onClick={() => handleLocationSelect(loc.id, loc.name)}
                   >
                     <div className="cp-card-icon">
                       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{loc.icon}</svg>
                     </div>
                     <h3 className="cp-card-title">{loc.name}</h3>
-                    <p className="cp-card-sub">{loc.sub}</p>
+                    <p className="cp-card-sub">
+                      {loc.sub}
+                      {loc.id === 'hostel-gate' && (
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#3b82f6', fontWeight: '600', marginTop: '0.25rem' }}>
+                          Hostel delivery: +₹4
+                        </span>
+                      )}
+                    </p>
                     <span className="cp-loc-status-tag">{statusLabel}</span>
                   </button>
                 );
@@ -807,6 +1046,24 @@ export default function NewOrder() {
             </div>
 
             <div className="cp-review-container">
+              <div className="cp-review-box">
+                <h3 className="cp-review-heading">Customer Details</h3>
+                <div className="cp-review-details-list">
+                  <div className="cp-review-line">
+                    <span>Delivery Option</span>
+                    <strong>{classroomDelivery ? 'Classroom Delivery' : (selectedLocationName || '—')}</strong>
+                  </div>
+                  <div className="cp-review-line">
+                    <span>Phone</span>
+                    <strong>{guestDetails?.phone || '—'}</strong>
+                  </div>
+                  <div className="cp-review-line">
+                    <span>Class / Section</span>
+                    <strong>{guestDetails?.classroom || '—'}</strong>
+                  </div>
+                </div>
+              </div>
+
               <div className="cp-review-box">
                 <h3 className="cp-review-heading">Collection Details</h3>
                 <div className="cp-review-row">
@@ -838,11 +1095,17 @@ export default function NewOrder() {
                   </div>
                   <div className="cp-review-line">
                     <span>Print Mode</span>
-                    <strong>{colorOption === 'bw' ? `B&W (₹${config?.pricing?.bw}/pg)` : `Color (₹${config?.pricing?.color}/pg)`}</strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      {files.map(f => (
+                        <span key={f.key} style={{ fontSize: '0.8rem' }}>
+                          {f.file.name}: {f.colorMode === 'color' ? 'Color' : 'B&W'}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <div className="cp-review-line">
                     <span>Paper &amp; Side</span>
-                    <strong>{paperSize === 'A3' ? `A3 (+₹${config?.pricing?.a3Extra})` : 'A4'} · {printingSide === 'double' ? 'Double-Sided' : 'Single-Sided'}</strong>
+                    <strong>{`A4`} · {files.some(f => f.printingSide === 'double') ? 'Mixed (S/D)' : (files[0]?.printingSide === 'double' ? 'Double-Sided' : 'Single-Sided')}</strong>
                   </div>
                 </div>
                 <div className="cp-review-total">

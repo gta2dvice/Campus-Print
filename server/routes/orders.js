@@ -24,12 +24,35 @@ function paymentGatewayReady() {
 
 // ── Order Configuration ─────────────────────
 const PRICING = {
-    bw: 2,
-    color: 5,
-    a3Extra: 10,
-    serviceCharge: 0,
-    deliveryCharge: 0
+    single: 2,
+    double: 3,
+    serviceCharge: 3,
+    hostelSurcharge: 4,
+    classroomDelivery: 10
 };
+
+function calculateTotalPrice(data) {
+    const fileSettings = data.fileSettings ? JSON.parse(data.fileSettings) : [];
+    let printingCost = 0;
+
+    if (fileSettings.length > 0) {
+        fileSettings.forEach(f => {
+            const rate = f.colorMode === 'color' ? 5 : (f.printingSide === 'double' ? 3 : 2);
+            printingCost += (Number(f.pages) || 0) * (Number(f.copies) || 1) * rate;
+        });
+    } else {
+        return 0; // No files, no cost
+    }
+
+    const serviceCharge = PRICING.serviceCharge;
+    let deliveryCharge = 0;
+    if (data.collectionLocationId === 'hostel-gate') {
+        deliveryCharge = PRICING.hostelSurcharge;
+    } else if (data.classroomDelivery === 'true' || data.classroomDelivery === true) {
+        deliveryCharge = PRICING.classroomDelivery;
+    }
+    return printingCost + serviceCharge + deliveryCharge;
+}
 
 // @route  GET /api/orders/config
 router.get('/config', (req, res) => {
@@ -110,8 +133,11 @@ router.get('/slots', async (req, res) => {
 });
 
 // GET /api/orders/stats
-router.get('/stats', requireProfile, async (req, res) => {
+router.get('/stats', async (req, res) => {
     try {
+        if (!req.session || !req.session.userId) {
+            return res.json({ total: 0, in_progress: 0, ready: 0 });
+        }
         const stats = await Order.getOrderStats(req.session.userId);
         res.json(stats);
     } catch (err) {
@@ -121,10 +147,15 @@ router.get('/stats', requireProfile, async (req, res) => {
 });
 
 // GET /api/orders/:id — single order, owner-only (used by the collection ticket page)
-router.get('/:id', requireProfile, async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
-        const order = await Order.getOrderForUser(req.params.id, req.session.userId);
+        const order = await Order.getOrderById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
+
+        // If it's a guest order, we show it. If it's a user order, we check session.
+        if (order.user_id && req.session && req.session.userId !== order.user_id) {
+            return res.status(403).json({ message: 'Not authorized to view this order' });
+        }
 
         const [[payment]] = await pool.query(
             `SELECT transaction_ref, method, amount FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1`,
@@ -157,8 +188,11 @@ router.post('/detect-pages', detectUpload.array('files', 10), async (req, res) =
 });
 
 // GET /api/orders
-router.get('/', requireProfile, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
+        if (!req.session || !req.session.userId) {
+            return res.json([]);
+        }
         const orders = await Order.getOrdersByUser(req.session.userId);
         res.json(orders);
     } catch (err) {
@@ -167,8 +201,11 @@ router.get('/', requireProfile, async (req, res) => {
     }
 });
 
-async function persistUploadedFiles(userId, orderId, files) {
+async function persistUploadedFiles(userId, orderId, files, fileSettings) {
     const stored = [];
+    const settingsMap = fileSettings ? JSON.parse(fileSettings) : [];
+    const settingsById = new Map(settingsMap.map(s => [String(s.key), s]));
+
     for (const file of files) {
         const { storedName, storagePath } = buildObjectPath(userId, orderId, file.originalname);
         await uploadBuffer({
@@ -176,6 +213,10 @@ async function persistUploadedFiles(userId, orderId, files) {
             buffer: file.buffer,
             contentType: file.mimetype
         });
+
+        // Find matching settings for this file
+        // Note: files array from multer doesn't have keys, but we can match by order/index
+        // Actually, it's better to pass settings indexed by the order they come in.
         stored.push({
             originalname: file.originalname,
             storedName,
@@ -184,7 +225,18 @@ async function persistUploadedFiles(userId, orderId, files) {
             size: file.size
         });
     }
-    await OrderFile.createFiles(orderId, stored);
+    // This needs refinement to link settings to files.
+    // Since multer.array('files') preserves order, we can zip them.
+    const finalFiles = stored.map((s, idx) => {
+        const setting = settingsMap[idx] || {};
+        return {
+            ...s,
+            printingSide: setting.printingSide || 'single',
+            copies: setting.copies || 1,
+            colorMode: setting.colorMode || 'bw'
+        };
+    });
+    await OrderFile.createFiles(orderId, finalFiles);
 }
 
 function readOrderPayload(body) {
@@ -194,7 +246,6 @@ function readOrderPayload(body) {
         copies: Number(body.copies),
         spiralBinding: body.spiralBinding === 'true' || body.spiralBinding === true,
         expressDelivery: body.expressDelivery === 'true' || body.expressDelivery === true,
-        printingSide: body.printingSide === 'double' ? 'double' : 'single',
         totalPages: Number(body.totalPages) || 0,
         totalPrice: Number(body.totalPrice),
         collectionLocationId: body.collectionLocationId || null,
@@ -204,27 +255,76 @@ function readOrderPayload(body) {
 }
 
 // POST /api/orders/payment/create — creates a Cashfree order and returns a payment session.
-router.post('/payment/create', requireProfile, async (req, res) => {
+router.post('/payment/create', async (req, res) => {
+    console.log('[Payment Debug] Received /payment/create body:', JSON.stringify(req.body, null, 2));
     if (!paymentGatewayReady()) {
         return res.status(503).json({ message: 'Payment gateway is not configured. Set CASHFREE_APP_ID / CASHFREE_SECRET_KEY in .env.' });
     }
+
     try {
-        const amount = Number(req.body.totalPrice);
-        if (!amount || amount <= 0) return res.status(400).json({ message: 'Invalid order amount' });
+        // Server-side price calculation
+        const orderData = {
+            fileSettings: req.body.fileSettings,
+            printingSide: req.body.printingSide,
+            totalPages: req.body.totalPages,
+            collectionLocationId: req.body.collectionLocationId
+        };
+        const verifiedAmount = calculateTotalPrice(orderData);
+
+        if (!verifiedAmount || verifiedAmount <= 0) {
+            return res.status(400).json({ message: 'Invalid order amount' });
+        }
+
+        const { fullName, phone, classroom } = req.body;
+        if (!fullName || !phone || !classroom || !classroom.trim()) {
+            return res.status(400).json({ message: 'Full Name, Phone, and Classroom/Room Number are required.' });
+        }
+
+        // Backend format validation for required fields
+        const phoneRegex = /^[6-9][0-9]{9}$/;
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
+        }
+
+        if (classroom.trim().length < 2) {
+            return res.status(400).json({ message: 'Please enter a valid classroom/room number.' });
+        }
+
+        // Optional field validation
+        const { batch, classSection } = req.body;
+        if (batch && !/^[0-9]{4}-[0-9]{s}*$/.test(batch)) { // Simple check, actual regex below
+             // We'll apply the full regex here
+        }
+        if (batch) {
+            const batchRegex = /^[0-9]{4}-[0-9]{4}$/;
+            if (!batchRegex.test(batch)) {
+                return res.status(400).json({ message: 'Enter batch in YYYY-YYYY format (e.g. 2024-2028).' });
+            }
+        }
+        if (classSection && /^\d+$/.test(classSection)) {
+            return res.status(400).json({ message: 'Enter a valid class/section (e.g. CSE-A).' });
+        }
+
+        // Validate Indian Phone Number
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'Please provide a valid 10-digit Indian mobile number.' });
+        }
 
         const User = require('../models/User');
-        const user = await User.findById(req.session.userId);
-        const cashfreeOrderId = `cp_${req.session.userId}_${Date.now()}`;
+        const userId = req.session?.userId || null;
+        const user = userId ? await User.findById(userId) : null;
+
+        const cashfreeOrderId = `cp_${userId || 'guest'}_${Date.now()}`;
         const frontend = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
         const publicApi = (process.env.PUBLIC_API_URL || '').replace(/\/$/, '');
         const notifyUrl = publicApi ? `${publicApi}/api/orders/payment/webhook` : undefined;
 
         const session = await cashfree.createPaymentSession({
             orderId: cashfreeOrderId,
-            amount,
-            customerId: `user_${req.session.userId}`,
-            customerEmail: user?.email || req.session.userEmail,
-            customerPhone: req.body.customerPhone,
+            amount: verifiedAmount,
+            customerId: `cust_${userId || 'guest'}_${Date.now()}`,
+            customerEmail: user?.email || `${phone}@guest.campusprint.com`,
+            customerPhone: phone,
             returnUrl: `${frontend}/new-order?cf_order={order_id}`,
             notifyUrl
         });
@@ -246,24 +346,71 @@ router.post('/payment/create', requireProfile, async (req, res) => {
 });
 
 // POST /api/orders/payment/simulate — TEMP stand-in or fallback when Cashfree keys fail.
-router.post('/payment/simulate', requireProfile, upload.array('files', 10), async (req, res) => {
+router.post('/payment/simulate', upload.array('files', 10), async (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: 'Please upload at least one file to continue.' });
         }
-        if (req.body.printingSide !== 'single' && req.body.printingSide !== 'double') {
-            return res.status(400).json({ message: 'Please choose single-sided or double-sided printing.' });
+        if (!req.body.fileSettings) {
+            return res.status(400).json({ message: 'Please configure printing settings for all files.' });
+        }
+
+        const { fullName, phone, classroom } = req.body;
+        if (!fullName || !phone || !classroom || !classroom.trim()) {
+            return res.status(400).json({ message: 'Full Name, Phone, and Classroom/Room Number are required.' });
+        }
+
+        // Backend format validation for required fields
+        const phoneRegex = /^[6-9][0-9]{9}$/;
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
+        }
+
+        if (classroom.trim().length < 2) {
+            return res.status(400).json({ message: 'Please enter a valid classroom/room number.' });
+        }
+
+        // Optional field validation
+        const { batch, classSection } = req.body;
+        if (batch && !/^[0-9]{4}-[0-9]{s}*$/.test(batch)) { // Simple check, actual regex below
+             // We'll apply the full regex here
+        }
+        if (batch) {
+            const batchRegex = /^[0-9]{4}-[0-9]{4}$/;
+            if (!batchRegex.test(batch)) {
+                return res.status(400).json({ message: 'Enter batch in YYYY-YYYY format (e.g. 2024-2028).' });
+            }
+        }
+        if (classSection && /^\d+$/.test(classSection)) {
+            return res.status(400).json({ message: 'Enter a valid class/section (e.g. CSE-A).' });
+        }
+
+        // Validate Indian Phone Number
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'Please provide a valid 10-digit Indian mobile number.' });
         }
 
         const data = readOrderPayload(req.body);
         const pickupErr = slots.pickupError(data.collectionLocationId, data.collectionTime);
         if (pickupErr) return res.status(400).json({ message: pickupErr });
-        data.fileCount = req.files.length;
 
-        const order = await Order.createOrder(req.session.userId, DEFAULT_SHOP_ID, data);
-        await persistUploadedFiles(req.session.userId, order.id, req.files);
+        // Server-side price calculation to prevent tampering
+        const verifiedPrice = calculateTotalPrice({
+            ...data,
+            fileSettings: req.body.fileSettings
+        });
+        data.totalPrice = verifiedPrice;
+
+        data.fileCount = req.files.length;
+        data.guestFullName = fullName;
+        data.guestPhone = phone;
+        data.guestClassroom = classroom;
+
+        const userId = req.session?.userId || null;
+        const order = await Order.createOrder(userId, DEFAULT_SHOP_ID, data);
+        await persistUploadedFiles(userId, order.id, req.files, req.body.fileSettings);
         const simulatedRef = `TXN-SIM-${Date.now()}`;
-        await Payment.createForOrder(order.id, req.session.userId, DEFAULT_SHOP_ID, data.totalPrice || 0, 'simulated', simulatedRef);
+        await Payment.createForOrder(order.id, userId, DEFAULT_SHOP_ID, data.totalPrice || 0, 'simulated', simulatedRef);
 
         res.status(201).json({ id: order.id, ticketNumber: order.ticketNumber });
     } catch (err) {
@@ -273,7 +420,7 @@ router.post('/payment/simulate', requireProfile, upload.array('files', 10), asyn
 });
 
 // POST /api/orders/payment/verify — confirms Cashfree order status, then creates the print order.
-router.post('/payment/verify', requireProfile, upload.array('files', 10), async (req, res) => {
+router.post('/payment/verify', upload.array('files', 10), async (req, res) => {
     if (!paymentGatewayReady()) return res.status(503).json({ message: 'Payment gateway is not configured.' });
     let cashfreeOrderId;
     try {
@@ -281,14 +428,46 @@ router.post('/payment/verify', requireProfile, upload.array('files', 10), async 
         if (!cashfreeOrderId) {
             return res.status(400).json({ message: 'Missing payment order id' });
         }
-        if (!String(cashfreeOrderId).startsWith(`cp_${req.session.userId}_`)) {
-            return res.status(403).json({ message: 'Invalid payment order' });
-        }
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: 'Please upload at least one file to continue.' });
         }
-        if (req.body.printingSide !== 'single' && req.body.printingSide !== 'double') {
-            return res.status(400).json({ message: 'Please choose single-sided or double-sided printing.' });
+        if (!req.body.fileSettings) {
+            return res.status(400).json({ message: 'Please configure printing settings for all files.' });
+        }
+
+        const { fullName, phone, classroom } = req.body;
+        if (!fullName || !phone || !classroom || !classroom.trim()) {
+            return res.status(400).json({ message: 'Full Name, Phone, and Classroom/Room Number are required.' });
+        }
+
+        // Backend format validation for required fields
+        const phoneRegex = /^[6-9][0-9]{9}$/;
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
+        }
+
+        if (classroom.trim().length < 2) {
+            return res.status(400).json({ message: 'Please enter a valid classroom/room number.' });
+        }
+
+        // Optional field validation
+        const { batch, classSection } = req.body;
+        if (batch && !/^[0-9]{4}-[0-9]{s}*$/.test(batch)) { // Simple check, actual regex below
+             // We'll apply the full regex here
+        }
+        if (batch) {
+            const batchRegex = /^[0-9]{4}-[0-9]{4}$/;
+            if (!batchRegex.test(batch)) {
+                return res.status(400).json({ message: 'Enter batch in YYYY-YYYY format (e.g. 2024-2028).' });
+            }
+        }
+        if (classSection && /^\d+$/.test(classSection)) {
+            return res.status(400).json({ message: 'Enter a valid class/section (e.g. CSE-A).' });
+        }
+
+        // Validate Indian Phone Number
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'Please provide a valid 10-digit Indian mobile number.' });
         }
 
         const cfOrder = await cashfree.fetchOrderUntilPaid(cashfreeOrderId);
@@ -298,7 +477,7 @@ router.post('/payment/verify', requireProfile, upload.array('files', 10), async 
 
         const existing = await Payment.findByGatewayOrderId(cashfreeOrderId);
         if (existing && existing.order_id) {
-            const prior = await Order.getOrderForUser(existing.order_id, req.session.userId);
+            const prior = await Order.getOrderById(existing.order_id);
             if (prior) {
                 return res.status(200).json({ id: prior.id, ticketNumber: prior.ticket_number });
             }
@@ -307,18 +486,32 @@ router.post('/payment/verify', requireProfile, upload.array('files', 10), async 
 
         const data = readOrderPayload(req.body);
         data.fileCount = req.files.length;
+        data.guestFullName = fullName;
+        data.guestPhone = phone;
+        data.guestClassroom = classroom;
+
         const pickupErr = slots.pickupError(data.collectionLocationId, data.collectionTime);
         if (pickupErr) return res.status(400).json({ message: pickupErr });
+
+        // Final amount verification before creating the order
+        const expectedPrice = calculateTotalPrice({
+            ...data,
+            fileSettings: req.body.fileSettings
+        });
+        if (!cashfree.amountsMatch(cfOrder.order_amount, expectedPrice)) {
+            return res.status(400).json({ message: 'Payment amount does not match the order requirements.' });
+        }
         if (!cashfree.amountsMatch(cfOrder.order_amount, data.totalPrice)) {
             return res.status(400).json({ message: 'Payment amount does not match this order.' });
         }
 
-        const order = await Order.createOrder(req.session.userId, DEFAULT_SHOP_ID, data);
-        await persistUploadedFiles(req.session.userId, order.id, req.files);
+        const userId = req.session?.userId || null;
+        const order = await Order.createOrder(userId, DEFAULT_SHOP_ID, data);
+        await persistUploadedFiles(userId, order.id, req.files, req.body.fileSettings);
         const paymentId = cfOrder.cf_payment_id || cfOrder.order_id || cashfreeOrderId;
         await Payment.createForOrder(
             order.id,
-            req.session.userId,
+            userId,
             DEFAULT_SHOP_ID,
             Number(cfOrder.order_amount) || data.totalPrice || 0,
             'cashfree',
@@ -331,8 +524,8 @@ router.post('/payment/verify', requireProfile, upload.array('files', 10), async 
         if (err.code === '23505' && cashfreeOrderId) {
             const existing = await Payment.findByGatewayOrderId(cashfreeOrderId);
             if (existing?.order_id) {
-                const prior = await Order.getOrderForUser(existing.order_id, req.session.userId);
-                if (prior) return res.status(200).json({ id: prior.id, ticketNumber: prior.ticket_number });
+                const prior = await Order.getOrderById(existing.order_id);
+                if (prior) return res.status(200).json({ id: prior.id, ticketNumber: prior.ticketNumber });
             }
         }
         console.error('Payment verify error:', err.response?.data || err.message);

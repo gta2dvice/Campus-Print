@@ -3,23 +3,27 @@ const Profile = require('./Profile');
 
 async function createOrder(userId, shopId, data) {
     const {
-        colorOption, paperSize, copies, spiralBinding, expressDelivery, totalPrice, fileCount,
-        collectionLocationId, collectionLocationName, collectionTime, totalPages, printingSide
+        paperSize, copies, spiralBinding, expressDelivery, totalPrice, fileCount,
+        collectionLocationId, collectionLocationName, collectionTime, totalPages,
+        guestFullName, guestPhone, guestClassroom
     } = data;
 
-    const profile = await Profile.getProfileByUserId(userId);
-    const studentId = profile ? profile.id : null;
+    let studentId = null;
+    if (userId) {
+        const profile = await Profile.getProfileByUserId(userId);
+        studentId = profile ? profile.id : null;
+    }
 
     const [result] = await pool.execute(
         `INSERT INTO orders
-            (user_id, student_id, shop_id, color_option, paper_size, copies, spiral_binding, express_delivery, total_price, file_count,
-             collection_location_id, collection_location, collection_time, total_pages, printing_side)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, student_id, shop_id, paper_size, copies, spiral_binding, express_delivery, total_price, file_count,
+             collection_location_id, collection_location, collection_time, total_pages,
+             guest_full_name, guest_phone, guest_classroom)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-            userId,
+            userId || null,
             studentId,
             shopId,
-            colorOption || 'bw',
             paperSize || 'A4',
             copies || 1,
             spiralBinding ? 1 : 0,
@@ -30,7 +34,9 @@ async function createOrder(userId, shopId, data) {
             collectionLocationName || null,
             collectionTime || null,
             totalPages || 0,
-            printingSide === 'double' ? 'double' : 'single'
+            guestFullName || null,
+            guestPhone || null,
+            guestClassroom || null
         ]
     );
     const ticketNumber = `CP-${String(result.insertId).padStart(3, '0')}`;
